@@ -81,8 +81,7 @@ export class KrakenReferenceVenue implements MarketVenue {
     // Calculate the mid-point price (average of best bid and best ask)
     public async getMidPointPrice(): Promise<number | null> {
         try {
-            const bestBid = await this.getBestBid();
-            const bestAsk = await this.getBestAsk();
+            const [bestBid, bestAsk] = await Promise.all([this.getBestBid(), this.getBestAsk()]);
 
             if (bestBid === null || bestAsk === null) {
                 throw new Error("Unable to calculate mid-point price due to missing data");

@@ -2,6 +2,7 @@
 import { ethers } from "ethers";
 import { RubiconConnector } from "../../connectors/rubicon";
 import { KrakenReferenceVenue } from "../../referenceVenues/kraken";
+import { RubiconBookTracker } from "../../referenceVenues/rubicon";
 
 export class CexMarketMaking {
     /// Strategy that targets a CEX market and places orders on Rubicon depending on the CEXs liquidity curve
@@ -18,6 +19,7 @@ export class CexMarketMaking {
     // Rubicon Connector Instance
     rubiconConnector: RubiconConnector;
     referenceVenueConnector: any; // TODO: add connector interface
+    rubiconBookWatcher: RubiconBookTracker;
 
     constructor(
         chainID: number,
@@ -29,6 +31,7 @@ export class CexMarketMaking {
         referenceCEXVenue: string,
         referenceCEXBaseTicker: string,
         referenceCEXQuoteTicker: string,
+        // TODO: Add more config options like levels, min/max spread, etc.
     ) {
         this.chainID = chainID;
         this.userAddress = userAddress;
@@ -52,6 +55,13 @@ export class CexMarketMaking {
             console.log("Reference CEX Venue is Kraken");
             this.referenceVenueConnector = new KrakenReferenceVenue(referenceCEXBaseTicker, referenceCEXQuoteTicker);
         }
+
+        this.rubiconBookWatcher = new RubiconBookTracker(
+            chainID,
+            userAddress,
+            baseAddress,
+            quoteAddress,
+        );
     }
 
     async runStrategy() {
@@ -59,6 +69,10 @@ export class CexMarketMaking {
         console.log("Running CEX Market Making Strategy");
         const test = await this.referenceVenueConnector.getBestBid();
         console.log("Best Bid from CEX: ", test);
+
+
+        const obTest = await this.rubiconBookWatcher.fetchOrderBook();
+        console.log("Order Book from Rubicon: ", obTest);
         
     }
 }
