@@ -1,0 +1,15 @@
+{
+  "name": "rubi-bots-ts",
+  "version": "1.0.0",
+  "description": "trading bots for Rubicon.Finance in TS",
+  "main": "src/index.ts",
+  "repository": "https://github.com/RubiconDeFi/rubi-bots-ts.git",
+  "author": "bghughes <benjamin.hughes@utexas.edu>",
+  "license": "MIT",
+  "dependencies": {
+    "@rubicondefi/gladius-sdk": "^1.4.27",
+    "@uniswap/token-lists": "^1.0.0-beta.34",
+    "ethers": "5",
+    "ts-node": "^10.9.2"
+  }
+}
