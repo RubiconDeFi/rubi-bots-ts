@@ -33,9 +33,16 @@ export class RubiconConnector {
         if (performAllowanceAndBalanceCheck) {
             this.performAllowanceAndBalanceCheck();
         }
+        console.log("Rubicon Connector Initialized");
+        
     }
     
     performAllowanceAndBalanceCheck() {
+
+        console.log("STARTED RUBICON CONNECTOR WITH CHECKS FLAG");
+        
+        console.log("Performing allowance and balance check");
+        
         /// Verify permit 2 allowances and balances are correct for a given chainID
     }
 }
