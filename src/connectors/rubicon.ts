@@ -6,6 +6,7 @@ import axios from "axios";
 import MultiCall from "@indexed-finance/multicall";
 import { GLADIUS } from "../config/rubicon";
 import { permit2addresses, reactorAddresses } from "../config/tokens";
+import { getTokenInfoFromAddress } from "../utils.ts/rubicon";
 
 export class RubiconConnector {
     chainID: number;
@@ -55,15 +56,14 @@ export class RubiconConnector {
         const multi = new MultiCall(this.provider);
         this.multi = multi;
 
-        // TODO: Token initialization with TokenInfo, ideally from a token list
-        this.base = {} as TokenInfo;
-        this.quote = {} as TokenInfo;
+        this.base = getTokenInfoFromAddress(this.baseAddress, this.chainID);
+        this.quote = getTokenInfoFromAddress(this.quoteAddress, this.chainID);
 
         if (performAllowanceAndBalanceCheck) {
             this.monitorOnchainAssetsAndInventory(); // Start monitoring balance and allowance
         }
 
-        console.log("Rubicon Connector Initialized");
+        console.log("Rubicon Connector Initialized", "connected to", this.signer.address);
     }
 
     // Monitor on-chain balances and allowances

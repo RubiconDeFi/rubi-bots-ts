@@ -5,17 +5,25 @@ import { GenericOrderWithData, ORDER_STATUS } from "../types/rubicon";
 import { tokenList } from "../config/tokens";
 
 
-export function getTokenDecimals(tokenAddress: string): number {
-    const token = tokenList.tokens.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase());
+export function getTokenDecimals(tokenAddress: string, chainId: number): number {
+    const token = tokenList.tokens.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase() && t.chainId === chainId);
     if (!token) {
         throw new Error(`Token ${tokenAddress} not found in provided list.`);
     }
     return token.decimals;
 };
 
+export function getTokenInfoFromAddress(tokenAddress: string, chainId: number) {
+    const token = tokenList.tokens.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase() && t.chainId === chainId);
+    if (!token) {
+        throw new Error(`Token ${tokenAddress} not found in provided list.`);
+    }
+    return token;
+}
+
 export function parseOrders(chainID: number, orders: any[], baseToken: string, quoteToken: string, isAsk: boolean): GenericOrderWithData[] {
-    const tokenDecimals = getTokenDecimals(baseToken);
-    const quoteDecimals = getTokenDecimals(quoteToken);
+    const tokenDecimals = getTokenDecimals(baseToken, chainID);
+    const quoteDecimals = getTokenDecimals(quoteToken, chainID);
 
     return orders
         .filter(order => {
