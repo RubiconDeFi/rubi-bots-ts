@@ -1,6 +1,10 @@
 // src/strategies/cexMarketMaking/index.ts
+import * as dotenv from "dotenv";
+
 import { ethers } from "ethers";
 import { CexMarketMaking } from "./cexMarketMaking"; // Adjust the path if necessary
+
+dotenv.config();
 
 async function startCEXMarketMakingStrategy() {
     // Get command line arguments
@@ -23,10 +27,17 @@ async function startCEXMarketMakingStrategy() {
     // Set up the ethers provider
     const provider = new ethers.providers.JsonRpcProvider(providerUrl);
 
+    // User wallet with pk in .env as PRIVATE_KEY
+    if (!process.env.PRIVATE_KEY) {
+        console.error("Please provide a private key in the .env file");
+        process.exit(1);
+    }
+    const userWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+
     // Instantiate the CexMarketMaking strategy
     const strategy = new CexMarketMaking(
         chainID,
-        provider,
+        userWallet,
         userAddress,
         baseAddress,
         quoteAddress,

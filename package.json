@@ -7,8 +7,10 @@
   "author": "bghughes <benjamin.hughes@utexas.edu>",
   "license": "MIT",
   "dependencies": {
+    "@indexed-finance/multicall": "^2.0.0",
     "@rubicondefi/gladius-sdk": "^1.4.27",
     "@uniswap/token-lists": "^1.0.0-beta.34",
+    "dotenv": "^16.4.5",
     "ethers": "5",
     "node-kraken-api": "^2.2.2",
     "ts-node": "^10.9.2",

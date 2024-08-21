@@ -20,10 +20,11 @@ export class CexMarketMaking {
     rubiconConnector: RubiconConnector;
     referenceVenueConnector: any; // TODO: add connector interface
     rubiconBookWatcher: RubiconBookTracker;
+    walletWithProvider: ethers.Wallet;
 
     constructor(
         chainID: number,
-        provider: ethers.providers.Provider,
+        walletWithProvider: ethers.Wallet,
         userAddress: string,
         baseAddress: string,
         quoteAddress: string,
@@ -37,13 +38,14 @@ export class CexMarketMaking {
         this.userAddress = userAddress;
         this.baseAddress = baseAddress;
         this.quoteAddress = quoteAddress;
-        this.provider = provider;
+        this.provider = walletWithProvider.provider;
         this.referenceCEXBaseTicker = referenceCEXBaseTicker;
         this.referenceCEXQuoteTicker = referenceCEXQuoteTicker;
+        this.walletWithProvider = walletWithProvider;
 
         this.rubiconConnector = new RubiconConnector(
             chainID,
-            provider,
+            walletWithProvider,
             userAddress,
             baseAddress,
             quoteAddress,
