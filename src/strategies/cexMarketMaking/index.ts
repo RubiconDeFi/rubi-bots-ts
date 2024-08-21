@@ -41,7 +41,6 @@ async function startCEXMarketMakingStrategy() {
         userAddress,
         baseAddress,
         quoteAddress,
-        true,
         "kraken",
         referenceCEXBaseTicker,
         referenceCEXQuoteTicker
