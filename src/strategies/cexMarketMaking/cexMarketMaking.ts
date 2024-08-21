@@ -82,8 +82,12 @@ export class CexMarketMaking {
 
                 // Step 2: Fetch current Rubicon order book
                 await this.rubiconBookWatcher.fetchOrderBook();
-                const bestAsk = await this.rubiconBookWatcher.getBestAsk();
-                const bestBid = await this.rubiconBookWatcher.getBestBid();
+
+                const rubiBook = this.rubiconBookWatcher.userBook;
+                console.log("How is this sorted?", rubiBook);
+                
+                const bestAsk: number | undefined = rubiBook.asks[0].price ? rubiBook.asks[0].price : undefined;
+                const bestBid: number | undefined = rubiBook.bids[0].price ? rubiBook.bids[0].price : undefined;
 
                 console.log(`Best Ask on Rubicon: ${bestAsk}, Best Bid on Rubicon: ${bestBid}`);
 
@@ -110,7 +114,7 @@ export class CexMarketMaking {
 
         // Simple ladder logic for bids and asks (you can customize this)
         for (let i = 0; i < this.orderLadderSize; i++) {
-            const priceStep = midPrice * (0.0005 * (i + 1)); // Example price increment/decrement
+            const priceStep = midPrice * (0.0005 * (i + 1)); // Example price increment/decrement TODO: extrapolate to config
             const bidPrice = midPrice - priceStep;
             const askPrice = midPrice + priceStep;
 
@@ -129,8 +133,8 @@ export class CexMarketMaking {
 
     // Compare and update the Rubicon order book
     private async updateRubiconOrders(desiredBook: { bids: { price: number, size: number }[], asks: { price: number, size: number }[] }) {
-        const currentBids = this.rubiconBookWatcher.book.bids;
-        const currentAsks = this.rubiconBookWatcher.book.asks;
+        const currentBids = this.rubiconBookWatcher.userBook.bids;
+        const currentAsks = this.rubiconBookWatcher.userBook.asks;
 
         // Check bids
         for (let i = 0; i < desiredBook.bids.length; i++) {
