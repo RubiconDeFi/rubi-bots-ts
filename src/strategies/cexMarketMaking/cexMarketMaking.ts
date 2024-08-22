@@ -30,7 +30,7 @@ export class CexMarketMaking {
         referenceCEXVenue: string,
         referenceCEXBaseTicker: string,
         referenceCEXQuoteTicker: string,
-        pollInterval: number = 5000, // Poll every 5 seconds by default
+        pollInterval: number = 1000, // Poll every 5 seconds by default
         orderLadderSize: number = 3 // Default to 3 levels of orders on each side (bid/ask)
     ) {
         this.chainID = chainID;
@@ -84,10 +84,10 @@ export class CexMarketMaking {
                 await this.rubiconBookWatcher.fetchOrderBook();
 
                 const rubiBook = this.rubiconBookWatcher.userBook;
-                console.log("How is this sorted?", rubiBook);
+                console.log("Live order book", rubiBook);
                 
-                const bestAsk: number | undefined = rubiBook.asks[0].price ? rubiBook.asks[0].price : undefined;
-                const bestBid: number | undefined = rubiBook.bids[0].price ? rubiBook.bids[0].price : undefined;
+                const bestAsk: number | undefined = rubiBook.asks[0] ? rubiBook.asks[0].price : undefined;
+                const bestBid: number | undefined = rubiBook.bids[0] ? rubiBook.bids[0].price : undefined;
 
                 console.log(`Best Ask on Rubicon: ${bestAsk}, Best Bid on Rubicon: ${bestBid}`);
 

@@ -34,6 +34,11 @@ async function startCEXMarketMakingStrategy() {
     }
     const userWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
+    if (userWallet.address.toLowerCase() !== userAddress.toLowerCase()) {
+        console.error("Private key does not match provided user address");
+        process.exit(1);
+    }
+
     // Instantiate the CexMarketMaking strategy
     const strategy = new CexMarketMaking(
         chainID,

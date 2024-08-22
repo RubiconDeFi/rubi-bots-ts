@@ -1,10 +1,10 @@
 import { ethers, BigNumber } from "ethers";
 import { TokenInfo } from "@uniswap/token-lists";
 import { GladiusOrderBuilder, GladiusOrder, NonceManager } from "@rubicondefi/gladius-sdk";
-import { formatUnits, parseUnits } from "ethers/lib/utils";
+import { formatUnits, getAddress, parseUnits } from "ethers/lib/utils";
 import axios from "axios";
 import MultiCall from "@indexed-finance/multicall";
-import { GLADIUS } from "../config/rubicon";
+import { GLADIUS, MIN_ORDER_SIZES } from "../config/rubicon";
 import { permit2addresses, reactorAddresses } from "../config/tokens";
 import { getTokenInfoFromAddress } from "../utils.ts/rubicon";
 
@@ -117,6 +117,7 @@ export class RubiconConnector {
         setInterval(async () => {
             try {
                 const targetLengthToAcquire = 10;
+                // TODO: could do a multicall or read from permit2 mroe efficiently
                 this.nextNoncesToUse = await this.getAvailableNoncesNM(targetLengthToAcquire);
                 console.log("Got these nonces to use: ", this.nextNoncesToUse);
             } catch (error) {
@@ -126,19 +127,35 @@ export class RubiconConnector {
     }
 
     // Function to place an order on Rubicon
-    async placeOrder(size: number, price: number, isBid: boolean): Promise<any> {
+    // ASSUME SIZE IS IN BASE AMOUNT
+    async placeOrder(_size: number, price: number, isBid: boolean): Promise<any> {
         try {
             const inputToken = isBid ? this.quote : this.base;
             const outputToken = isBid ? this.base : this.quote;
             const account = this.userAddress;
+            const size = isBid ? _size * price : _size;
 
-            const inputAmount = parseUnits(size.toString(), inputToken.decimals);
+            if (MIN_ORDER_SIZES[inputToken.symbol] > size) {
+               console.log(`Minimum order size for ${inputToken.symbol} is ${MIN_ORDER_SIZES[inputToken.symbol]} skipping order`);
+               return;
+            }
+
+            // Arbitrarily one minute for now... TODO: make configurable
+            const _deadline = Math.floor(Date.now() / 1000) + 60;
+
+            // TODO: can probably optimize this...
+            const orderNonce = this.nextNoncesToUse.length > 0 ? this.nextNoncesToUse.shift() : await new NonceManager(this.provider as ethers.providers.BaseProvider, this.chainID, this.permit2address).useNonce(account);
+
+            const inputAmount = parseUnits(size.toFixed(inputToken.decimals), inputToken.decimals);
             const outputAmount = isBid
-                ? parseUnits((size / price).toString(), outputToken.decimals)
-                : parseUnits((size * price).toString(), outputToken.decimals);
+                ? parseUnits((size / price).toFixed(outputToken.decimals), outputToken.decimals)
+                : parseUnits((size * price).toFixed(outputToken.decimals), outputToken.decimals);
 
             const order = new GladiusOrderBuilder(this.chainID, this.reactorAddress, this.permit2address)
-                .deadline(Math.floor(Date.now() / 1000) + 600) // 10 minutes from now
+                .deadline(_deadline)
+                .decayEndTime(_deadline - 1)
+                .decayStartTime(Math.floor(Date.now() / 1000))
+                .nonce(BigNumber.from(orderNonce))
                 .swapper(account)
                 .input({
                     token: inputToken.address,
@@ -192,7 +209,7 @@ export class RubiconConnector {
 
     async editOrder(
         orderHashToCancel: string,
-        newSize: number,
+        _newSize: number,
         newPrice: number,
         isBid: boolean
     ): Promise<any> {
@@ -206,17 +223,30 @@ export class RubiconConnector {
             const inputToken = isBid ? this.quote : this.base;
             const outputToken = isBid ? this.base : this.quote;
             const chainId = this.chainID;
-            const account = this.userAddress;
+            const account = getAddress(this.userAddress);
+            const newSize = isBid ? _newSize * newPrice : _newSize;
 
+            // TODO: Do we just cancel here instead??? idk if it passes through and does the cancel or not..
+            // if (MIN_ORDER_SIZES[inputToken.symbol] > newSize) {
+            //     console.log(`Minimum order size for ${inputToken.symbol} is ${MIN_ORDER_SIZES[inputToken.symbol]} skipping order`);
+            //     return;
+            //  }
+
+            if (this.signer.address != account) {
+                throw new Error("Account does not match signer");
+            }
+            
             // Sign the original order hash
             const originalOrderSignature = await this.signer.signMessage(orderHashToCancel);
 
             // Set the nonce manager
-            const nonceMgr = new NonceManager(this.provider as ethers.providers.BaseProvider, chainId, this.permit2address);
-            const currentNonce = await nonceMgr.useNonce(account);
+            // const nonceMgr = new NonceManager(this.provider as ethers.providers.BaseProvider, chainId, this.permit2address);
+            // const currentNonce = await nonceMgr.useNonce(account);
+
+            const orderNonce = this.nextNoncesToUse.length > 0 ? this.nextNoncesToUse.shift() : await new NonceManager(this.provider as ethers.providers.BaseProvider, this.chainID, this.permit2address).useNonce(account);
 
             // Calculate the deadline (e.g., 10 minutes from now)
-            const _deadline = Math.floor(Date.now() / 1000) + 600;
+            const _deadline = Math.floor(Date.now() / 1000) + 60;
 
             // Calculate the new order's input and output amounts
             const inputAmount = newSize.toFixed(inputToken.decimals);
@@ -229,7 +259,7 @@ export class RubiconConnector {
                 .deadline(_deadline)
                 .decayEndTime(_deadline - 1)
                 .decayStartTime(Math.floor(Date.now() / 1000))
-                .nonce(currentNonce)
+                .nonce(BigNumber.from(orderNonce))
                 .swapper(account)
                 .input({
                     token: inputToken.address,
