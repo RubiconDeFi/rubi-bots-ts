@@ -31,7 +31,7 @@ export class CexMarketMaking {
         referenceCEXVenue: string,
         referenceCEXBaseTicker: string,
         referenceCEXQuoteTicker: string,
-        pollInterval: number = 5000, // Poll every 5 seconds by default
+        pollInterval: number = 2000, // Poll every 5 seconds by default
         orderLadderSize: number = 3 // Default to 3 levels of orders on each side (bid/ask)
     ) {
         this.chainID = chainID;
@@ -71,6 +71,8 @@ export class CexMarketMaking {
     async runStrategy() {
         console.log("Running CEX Market Making Strategy");
 
+        this.rubiconBookWatcher.pollForBookUpdates(this.pollInterval / 2);
+        var gate = false;
         setInterval(async () => {
             try {
                 // Step 1: Fetch CEX prices (e.g., from Kraken)
@@ -82,7 +84,7 @@ export class CexMarketMaking {
                 console.log(`Mid-point price from CEX: ${midPrice}`);
 
                 // Step 2: Fetch current Rubicon order book
-                await this.rubiconBookWatcher.fetchOrderBook();
+                // await this.rubiconBookWatcher.fetchOrderBook();
 
                 const rubiBook = this.rubiconBookWatcher.userBook;
                 console.log("Live order book", rubiBook);
@@ -97,7 +99,13 @@ export class CexMarketMaking {
 
                 console.log("Desired book", desiredBook);
                 // Step 4: Update orders on Rubicon
+                if (gate) {
+                    console.log("Gate is up, skipping order update");
+                    return;
+                }
+                gate = true;
                 await this.updateRubiconOrders(desiredBook);
+                gate = false;
 
             } catch (error) {
                 console.error("Error in market-making strategy:", error);
@@ -138,6 +146,8 @@ export class CexMarketMaking {
         const currentBids = this.rubiconBookWatcher.userBook.bids;
         const currentAsks = this.rubiconBookWatcher.userBook.asks;
 
+        const updatePromises: Promise<any>[] = [];
+
         // Check bids
         for (let i = 0; i < desiredBook.bids.length; i++) {
             const desiredBid = desiredBook.bids[i];
@@ -156,9 +166,9 @@ export class CexMarketMaking {
                 }
 
                 if (currentBid) {
-                    await this.rubiconConnector.editOrder(currentBid.hash, desiredBid.size, desiredBid.price, true);
+                    updatePromises.push(this.rubiconConnector.editOrder(currentBid.hash, desiredBid.size, desiredBid.price, true));
                 } else {
-                    await this.rubiconConnector.placeOrder(desiredBid.size, desiredBid.price, true);
+                    updatePromises.push(this.rubiconConnector.placeOrder(desiredBid.size, desiredBid.price, true));
                 }
             }
         }
@@ -166,7 +176,7 @@ export class CexMarketMaking {
         // Cancel any extra bids
         for (let i = desiredBook.bids.length; i < currentBids.length; i++) {
             console.log(`Cancelling bid at price: ${currentBids[i].price}, size: ${currentBids[i].size}`);
-            await this.rubiconConnector.cancelOrder(currentBids[i].hash);
+            updatePromises.push(this.rubiconConnector.cancelOrder(currentBids[i].hash));
         }
 
         // Check asks
@@ -184,9 +194,9 @@ export class CexMarketMaking {
             if (!currentAsk || Math.abs(currentAsk.price - desiredAsk.price) > 0.00001 || currentAsk.size !== desiredAsk.size) {
                 console.log(`Updating ask at price: ${desiredAsk.price}, size: ${desiredAsk.size}`);
                 if (currentAsk) {
-                    await this.rubiconConnector.editOrder(currentAsk.hash, desiredAsk.size, desiredAsk.price, false);
+                    updatePromises.push(this.rubiconConnector.editOrder(currentAsk.hash, desiredAsk.size, desiredAsk.price, false));
                 } else {
-                    await this.rubiconConnector.placeOrder(desiredAsk.size, desiredAsk.price, false);
+                    updatePromises.push(this.rubiconConnector.placeOrder(desiredAsk.size, desiredAsk.price, false));
                 }
             }
         }
@@ -194,7 +204,9 @@ export class CexMarketMaking {
         // Cancel any extra asks
         for (let i = desiredBook.asks.length; i < currentAsks.length; i++) {
             console.log(`Cancelling ask at price: ${currentAsks[i].price}, size: ${currentAsks[i].size}`);
-            await this.rubiconConnector.cancelOrder(currentAsks[i].hash);
+            updatePromises.push(this.rubiconConnector.cancelOrder(currentAsks[i].hash));
         }
+
+        await Promise.all(updatePromises);
     }
 }

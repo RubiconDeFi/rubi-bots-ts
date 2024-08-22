@@ -292,7 +292,7 @@ export class RubiconConnector {
             };
 
             // Log the request body for debugging
-            console.log("Editing order with request body:", requestBody);
+            // console.log("Editing order with request body:", requestBody);
 
             // Make the API request to edit the order
             const response = await axios.post(`${this.GLADIUS_URL}/dutch-auction/edit-order`, requestBody, {
