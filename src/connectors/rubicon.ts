@@ -193,10 +193,11 @@ export class RubiconConnector {
     // Function to cancel an order
     async cancelOrder(orderHash: string): Promise<boolean> {
         try {
+            const sig = await this.signer.signMessage(orderHash);
             const response = await axios.post(`${this.GLADIUS_URL}/dutch-auction/cancel`, {
-                signature: await this.signer.signMessage(orderHash),
+                signature: sig,
                 hash: orderHash,
-                swapper: this.userAddress,
+                swapper: this.signer.address,
             });
 
             console.log("Order cancelled:", response.data);
