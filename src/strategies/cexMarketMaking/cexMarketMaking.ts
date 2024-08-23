@@ -31,7 +31,7 @@ export class CexMarketMaking {
         referenceCEXVenue: string,
         referenceCEXBaseTicker: string,
         referenceCEXQuoteTicker: string,
-        pollInterval: number = 2000, // Poll every 5 seconds by default
+        pollInterval: number = 5000, // Poll every 5 seconds by default
         orderLadderSize: number = 3 // Default to 3 levels of orders on each side (bid/ask)
     ) {
         this.chainID = chainID;
@@ -104,7 +104,14 @@ export class CexMarketMaking {
                     return;
                 }
                 gate = true;
-                await this.updateRubiconOrders(desiredBook);
+                try {
+                    
+                    await this.updateRubiconOrders(desiredBook);
+                } catch (error) {
+                    console.log("Error updating orders", error);
+                    gate = false;
+                    
+                }
                 gate = false;
 
             } catch (error) {
