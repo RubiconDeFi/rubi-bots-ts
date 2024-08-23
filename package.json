@@ -1,0 +1,26 @@
+{
+  "name": "rubi-bots-ts",
+  "version": "1.0.0",
+  "description": "trading bots for Rubicon.Finance in TS",
+  "main": "src/index.ts",
+  "repository": "https://github.com/RubiconDeFi/rubi-bots-ts.git",
+  "author": "bghughes <benjamin.hughes@utexas.edu>",
+  "license": "MIT",
+  "dependencies": {
+    "@indexed-finance/multicall": "^2.0.0",
+    "@rubicondefi/gladius-sdk": "^1.4.27",
+    "@uniswap/token-lists": "^1.0.0-beta.34",
+    "dotenv": "^16.4.5",
+    "ethers": "5",
+    "node-kraken-api": "^2.2.2",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.6.3",
+    "typescript": "^5.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.4.1"
+  },
+  "scripts": {
+    "run:cexMarketMaking": "ts-node src/strategies/cexMarketMaking/index.ts"
+  }
+}
