@@ -1,5 +1,5 @@
 # **RUBI-BOTS-TS**
-Example bot implementations for Rubicon Gladius (v4) in Typescript.
+Example bot implementations for Rubicon Gladius (v4) in Typescript. **This repository in an onging work in progress that will be developed and maintained by Rubicon and its community. Use at your own risk. [Terms of Use apply](https://rubicon.finance/terms).**
 
 ## Overview
 This repository provides a framework for building, executing, and extending trading bots designed for the Rubicon protocol using the Gladius (v4) SDK. Written in TypeScript, the bots are modular and can be adapted for different strategies, connectors, and reference venues.
