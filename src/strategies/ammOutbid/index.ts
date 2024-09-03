@@ -26,6 +26,7 @@ async function startAMMOutBidStrategy() {
     const orderLadderLength = args[5] ? parseInt(args[5], 10) : undefined;
     const priceLadderFactor = args[6] ? parseFloat(args[6]) : undefined;
     const pollInterval = args[7] ? parseInt(args[7], 10) : 5000;
+    const isUniv2 = args[8] ? args[8].toLowerCase() === "true" : undefined;
 
     // Set up the ethers provider
     const provider = new ethers.providers.JsonRpcProvider(providerUrl);
@@ -48,7 +49,8 @@ async function startAMMOutBidStrategy() {
         feeTier,
         pollInterval,
         orderLadderLength,
-        priceLadderFactor
+        priceLadderFactor,
+        isUniv2
     );
 
     // Run the strategy

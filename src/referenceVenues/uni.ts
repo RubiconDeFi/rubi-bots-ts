@@ -27,6 +27,7 @@ export class UniswapReferenceVenue implements MarketVenue {
         quote: TokenInfo,
         uniFee: BigNumber,
         quoterContract: ethers.Contract,
+        isUNIv2: boolean = false
     ) {
         this.provider = provider;
         this.isV2Quoter = isV2;
@@ -35,9 +36,7 @@ export class UniswapReferenceVenue implements MarketVenue {
         this.uniFee = uniFee;
         this.quoterContract = quoterContract
         this.pairAddress = this.calculateUniswapPairAddress(baseAddress, quoteAddress);
-        
-        // TODO: ADD SUPPORT TO DENOTE WHEN IS UNIV2
-        this.isUNIv2 = false;
+        this.isUNIv2 = isUNIv2;
     }
 
     private calculateUniswapPairAddress(baseAddress: string, quoteAddress: string): string {

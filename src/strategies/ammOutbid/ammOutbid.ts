@@ -37,7 +37,8 @@ export class AMMOutBid {
         uniFee: BigNumber,
         pollInterval: number = 5000,
         orderLadderSize: number = 3,
-        priceLadderFactor: number = 0.0005
+        priceLadderFactor: number = 0.0005,
+        isUNIv2Pair: boolean = false
     ) {
         this.chainID = chainID;
         this.userAddress = userAddress;
@@ -75,7 +76,8 @@ export class AMMOutBid {
             baseTokenInfo,
             quoteTokenInfo,
             uniFee,
-            new ethers.Contract(quoterContractAddress, quoterInterface, this.provider)
+            new ethers.Contract(quoterContractAddress, quoterInterface, this.provider),
+            isUNIv2Pair
         );
 
         this.rubiconConnector = new RubiconConnector(
