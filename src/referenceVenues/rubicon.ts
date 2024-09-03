@@ -36,7 +36,7 @@ export class RubiconBookTracker implements MarketVenue {
 
         try {
             const [asks, bids] = await Promise.all([this.fetchAllOrders(asksUrl), this.fetchAllOrders(bidsUrl)]);
-            
+
             const parsedAsks = parseOrders(this.chainID, asks, this.baseAddress, this.quoteAddress, true);
             const parsedBids = parseOrders(this.chainID, bids, this.baseAddress, this.quoteAddress, false);
 
@@ -70,7 +70,16 @@ export class RubiconBookTracker implements MarketVenue {
         const cursorParam = cursor ? `&cursor=${cursor}` : '';
         const fullUrl = `${url}${cursorParam}`;
         try {
-            const response = await axios.get(fullUrl);
+            var queryParams: any = undefined;
+            // If an API key is configured, use that
+            if (process.env.RUBICON_API_KEY) {
+                queryParams = {
+                    headers: {
+                        "x-api-key": process.env.RUBICON_API_KEY
+                    }
+                };
+            }
+            const response = await axios.get(fullUrl, queryParams);
             return response.data;
         } catch (error) {
             console.error(`Error fetching orders from ${fullUrl}:`, error);
