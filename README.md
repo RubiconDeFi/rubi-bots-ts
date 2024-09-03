@@ -51,7 +51,7 @@ If you encounter any issues, have suggestions for improvements, or would like to
 Rubi Bots are best run in the cloud to earn for you while you sleep. Here is an example of a simple way you could do this with Heroku.
 
 1. Make a private fork of this repo.
-2. Add a `Procfile` in the root of the repo (your fork).
+2. Add a `Procfile` in the root of the repo (your fork). Please see the `Procfile` example in the root of this repo for guidance.
 3. Configure your strategy and add it to the Procfile.
 4. Add a new Heroku app which automatically builds off of your private fork of this repo.
 5. Configure necessary `.env` variables in the Heroku app settings
