@@ -5,11 +5,14 @@ import { SimpleBook } from '../types/rubicon';
 import { tickToBook, tickToBook_UniV2, buildBook, getUNIReferenceRate } from '../utils/uni';
 import { TokenInfo } from '@uniswap/token-lists';
 import { generateLadderSizesInWei } from '../utils/uni';
+import { getUSDfromCB } from '../utils/rubicon';
+import { formatUnits } from 'ethers/lib/utils';
 
 export class UniswapReferenceVenue implements MarketVenue {
     private pairAddress: string;
     private provider: ethers.providers.Provider;
-    private isV2: boolean;
+    private isV2Quoter: boolean;
+    private isUNIv2: boolean;
     private quoterContract: ethers.Contract;
     private uniFee: BigNumber;
     private token: TokenInfo;
@@ -18,21 +21,23 @@ export class UniswapReferenceVenue implements MarketVenue {
     constructor(
         baseAddress: string,
         quoteAddress: string,
-        providerUrl: string,
+        provider: ethers.providers.Provider,
         isV2: boolean,
         token: TokenInfo,
         quote: TokenInfo,
         uniFee: BigNumber,
-        quoterContractAddress: string,
-        quoterInterface: ethers.utils.Interface,
+        quoterContract: ethers.Contract,
     ) {
-        this.provider = new ethers.providers.JsonRpcProvider(providerUrl);
-        this.isV2 = isV2;
+        this.provider = provider;
+        this.isV2Quoter = isV2;
         this.token = token;
         this.quote = quote;
         this.uniFee = uniFee;
-        this.quoterContract = new ethers.Contract(quoterContractAddress, quoterInterface, this.provider);
+        this.quoterContract = quoterContract
         this.pairAddress = this.calculateUniswapPairAddress(baseAddress, quoteAddress);
+        
+        // TODO: ADD SUPPORT TO DENOTE WHEN IS UNIV2
+        this.isUNIv2 = false;
     }
 
     private calculateUniswapPairAddress(baseAddress: string, quoteAddress: string): string {
@@ -41,15 +46,41 @@ export class UniswapReferenceVenue implements MarketVenue {
         return `${baseAddress}_${quoteAddress}`;
     }
 
-    private async fetchUniswapOrderBook(): Promise<SimpleBook | undefined> {
-        const referenceRate = await getUNIReferenceRate(this.token, this.quote, 1, this.provider); // Replace with actual logic
-        const leftSizeLadderWei = generateLadderSizesInWei(referenceRate, 50, 1.2, this.quote.decimals, false); // Example params
-        const rightSizeLadderWei = generateLadderSizesInWei(referenceRate, 50, 1.2, this.token.decimals, true); // Example params
-
-        if (this.isV2) {
-            return tickToBook_UniV2(leftSizeLadderWei, rightSizeLadderWei, this.quoterContract, this.quote, this.token, this.uniFee, 1);
-        } else {
-            return tickToBook(leftSizeLadderWei, rightSizeLadderWei, this.quoterContract, this.quote, this.token, this.uniFee, 1, this.isV2);
+    // TODO: more of this stuff should be easily configured
+    private async fetchUniswapOrderBook(): Promise<SimpleBook | undefined | void | any> {
+        const pairedQuoteUSD = await getUSDfromCB(this.quote);
+        if (!pairedQuoteUSD) {
+            console.error(`Could not find USD price for ${this.quote.symbol}`);
+            return;
+        }
+        // console.log(`Paired Quote USD: ${pairedQuoteUSD}`);
+        
+        const referenceRate = await getUNIReferenceRate(this.token, this.quote, parseFloat(pairedQuoteUSD.toString()), this.provider); 
+        // console.log('Reference Rate:', referenceRate);
+        const tokenUSDRef = referenceRate! * parseFloat(pairedQuoteUSD.toString());
+        // console.log('Token USD Reference:', tokenUSDRef);
+        
+        const leftSizeLadderWei = generateLadderSizesInWei(referenceRate, 10, 1.2, this.quote.decimals, false, pairedQuoteUSD); 
+        const rightSizeLadderWei = generateLadderSizesInWei(referenceRate, 10, 1.2, this.token.decimals, true, tokenUSDRef);
+        
+        // console.log('Left Size Ladder:', leftSizeLadderWei!.map((x) => formatUnits(x.toString(), this.quote.decimals)));
+        // console.log('Right Size Ladder:', rightSizeLadderWei!.map((x) => formatUnits(x.toString(), this.token.decimals)));
+        
+        if (leftSizeLadderWei && rightSizeLadderWei) {
+            // NOTE THIS IS UNIv2 vs UNIv3!!!!!
+            if (this.isUNIv2) {
+                const data = await tickToBook_UniV2(leftSizeLadderWei, rightSizeLadderWei, this.quoterContract, this.quote, this.token, this.uniFee, 1);
+                // Sort the book so zero index is best bid or ask
+                data.bids.sort((a, b) => b.price - a.price);
+                data.asks.sort((a, b) => a.price - b.price);
+                return data;
+            } else {
+                const data = await tickToBook(leftSizeLadderWei, rightSizeLadderWei, this.quoterContract, this.quote, this.token, this.uniFee, 1, this.isV2Quoter);
+                // Sort the book so zero index is best bid or ask
+                data.bids.sort((a, b) => b.price - a.price);
+                data.asks.sort((a, b) => a.price - b.price);
+                return data;
+            }
         }
     }
 
@@ -67,5 +98,9 @@ export class UniswapReferenceVenue implements MarketVenue {
         const [bestBid, bestAsk] = await Promise.all([this.getBestBid(), this.getBestAsk()]);
         if (bestBid === null || bestAsk === null) return null;
         return (bestBid + bestAsk) / 2;
+    }
+
+    public async getOrderBook(): Promise<SimpleBook | undefined> {
+        return this.fetchUniswapOrderBook();
     }
 }

@@ -7,6 +7,7 @@
   "author": "bghughes <benjamin.hughes@utexas.edu>",
   "license": "MIT",
   "dependencies": {
+    "@ethersproject/abi": "5.7",
     "@indexed-finance/multicall": "^2.0.0",
     "@rubicondefi/gladius-sdk": "^1.4.27",
     "@uniswap/token-lists": "^1.0.0-beta.34",

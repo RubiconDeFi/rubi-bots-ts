@@ -56,8 +56,8 @@ async function buildBook_UniV2(
   let leftBook = await leftBookPromise;
   let rightBook = await rightBookPromise;
 
-  let invPrices = [];
-  let invSizes = [];
+  let invPrices: number[] = [];
+  let invSizes: number[] = [];
 
   for (let i = 0; i < rightBook.prices.length; i++) {
     invSizes.push(rightBook.prices[i] * rightBook.sizes[i]);
@@ -332,8 +332,8 @@ export async function buildBook(
   let rightBook = await rightBookPromise;
 
   // rightBook has to be inverted
-  let invPrices = [];
-  let invSizes = [];
+  let invPrices: number[] = [];
+  let invSizes: number[] = [];
 
   for (let i = 0; i < rightBook.prices.length; i++) {
     invSizes.push(rightBook.prices[i] * rightBook.sizes[i]); // this is the new size
@@ -517,7 +517,7 @@ function stretch_book(book: SimpleBook, scalar: number): SimpleBook {
 
 const idealUSDLadder = [0.1, 5, 25, 100, 500, 1000, 5000, 10000, 50000, 100000];
 export function generateLadderSizesInWei(
-  referencePrice: number | null,
+  referencePrice: number | undefined,
   steps: number,
   factor: number,
   decimals: number,

@@ -406,6 +406,18 @@ export const tokenList: TokenList = {
                 quote: true,
             },
         },
+        {
+            name: 'Based Pepe',
+            symbol: 'PEPE',
+            chainId: Network.BASE_MAINNET,
+            address: '0x52b492a33E447Cdb854c7FC19F1e57E8BfA1777D',
+            decimals: 18,
+            extensions: {
+              referenceVenue: 'univ3',
+              referenceVenueQuote: 'WETH',
+              referenceVenueFeeTier: '10000',
+            },
+          },
         // *** Ethereum Mainnet
 
         {
