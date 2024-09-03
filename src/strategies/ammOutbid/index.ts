@@ -2,7 +2,6 @@
 import * as dotenv from "dotenv";
 import { ethers } from "ethers";
 import { AMMOutBid } from "./AMMOutBid"; // Adjust the path if necessary
-import { Network } from "../../config/tokens";
 
 dotenv.config();
 
@@ -10,8 +9,8 @@ async function startAMMOutBidStrategy() {
     // Get command line arguments
     const args = process.argv.slice(2);
 
-    if (args.length < 5) {
-        console.error("Please provide all required arguments");
+    if (args.length < 4) {
+        console.error("Please provide all required arguments: chainID, providerUrl, baseAddress, quoteAddress, feeTier");
         process.exit(1);
     }
 
@@ -20,29 +19,31 @@ async function startAMMOutBidStrategy() {
     const providerUrl = args[1];
     const baseAddress = args[2];
     const quoteAddress = args[3];
-    // const isV2 = args[4].toLowerCase() === "true";
-    // const quoterContractAddress = args[5];
     const feeTier = ethers.BigNumber.from(args[4]);
-
-    // Find isv2 and quoter contract based on chainID
-    // Configuration for UNI query
-    // Mock initialization for demonstration purposes - replace with actual values
-
 
     // Set up the ethers provider
     const provider = new ethers.providers.JsonRpcProvider(providerUrl);
 
+    // User wallet with pk in .env as PRIVATE_KEY
+    if (!process.env.PRIVATE_KEY) {
+        console.error("Please provide a private key in the .env file");
+        process.exit(1);
+    }
+    const userWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+    const userAddress = userWallet.address;
+
     // Instantiate the AMMOutBid strategy
     const strategy = new AMMOutBid(
         chainID,
-        provider,
+        userWallet,
+        userAddress,
         baseAddress,
         quoteAddress,
         feeTier
     );
 
-    // Log the order book
-    await strategy.logOrderBook();
+    // Run the strategy
+    strategy.runStrategy();
 }
 
 // Start the strategy when the script is executed
