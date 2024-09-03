@@ -26,6 +26,7 @@ export class AMMOutBid {
 
     pollInterval: number;
     orderLadderSize: number;
+    priceLadderFactor: number;
 
     constructor(
         chainID: number,
@@ -35,7 +36,8 @@ export class AMMOutBid {
         quoteAddress: string,
         uniFee: BigNumber,
         pollInterval: number = 5000,
-        orderLadderSize: number = 3
+        orderLadderSize: number = 3,
+        priceLadderFactor: number = 0.0005
     ) {
         this.chainID = chainID;
         this.userAddress = userAddress;
@@ -45,6 +47,7 @@ export class AMMOutBid {
         this.walletWithProvider = walletWithProvider;
         this.pollInterval = pollInterval;
         this.orderLadderSize = orderLadderSize;
+        this.priceLadderFactor = priceLadderFactor;
         this.uniFee = uniFee;
 
         var isV2 = false; // Default to V1
@@ -89,6 +92,15 @@ export class AMMOutBid {
             baseAddress,
             quoteAddress
         );
+
+        console.log("🔥 AMMOutBid strategy initialized with these parameters:");
+        console.log("Chain ID:", chainID);
+        console.log("User Address:", userAddress);
+        console.log("Base Address:", baseAddress);
+        console.log("Quote Address:", quoteAddress);
+        console.log("Poll Interval:", pollInterval);
+        console.log("Order Ladder Size:", orderLadderSize);
+        console.log("Price Ladder Factor:", priceLadderFactor);
     }
 
     // Run the strategy by polling the market and managing orders
@@ -151,7 +163,8 @@ export class AMMOutBid {
         const totalQuoteBalance = this.rubiconConnector.onChainAvailableQuoteBalance;
 
         for (let i = 0; i < this.orderLadderSize; i++) {
-            const priceStep = midPrice * (0.0005 * (i + 1));
+            // TODO: this key variable should be configurable
+            const priceStep = midPrice * (this.priceLadderFactor * (i + 1));
             const bidPrice = midPrice - priceStep;
             const askPrice = midPrice + priceStep;
 

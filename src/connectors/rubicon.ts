@@ -224,6 +224,11 @@ export class RubiconConnector {
                 throw new Error("A hash to cancel is required.");
             }
 
+            if (_newSize <= 0) {
+                console.log("Size must be greater than 0 to edit an order, cancelling the hash provided");
+                return this.cancelOrder(orderHashToCancel);
+            }
+
             // Define the new order details
             const inputToken = isBid ? this.quote : this.base;
             const outputToken = isBid ? this.base : this.quote;
