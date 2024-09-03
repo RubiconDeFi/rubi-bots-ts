@@ -3,6 +3,7 @@ import { BigNumber } from "ethers/lib/ethers";
 import { formatUnits } from "ethers/lib/utils";
 import { GenericOrderWithData, ORDER_STATUS } from "../types/rubicon";
 import { tokenList } from "../config/tokens";
+import { TokenInfo } from "@uniswap/token-lists";
 
 
 export function getTokenDecimals(tokenAddress: string, chainId: number): number {
@@ -53,3 +54,46 @@ export function parseOrders(chainID: number, orders: any[], baseToken: string, q
             };
         });
 }
+
+export function getUSDfromCB(token: TokenInfo): Promise<number | undefined> {
+    return getSymbolCurrentPriceUSDfromCB(token.symbol);
+}
+
+// https://docs.cloud.coinbase.com/sign-in-with-coinbase/docs/api-prices
+export function getSymbolCurrentPriceUSDfromCB(symbol: string): Promise<number | undefined> {
+    // Need to transform the symbol
+    const transformedSymbol = transformSymbol(symbol.toUpperCase());
+
+    if (transformedSymbol === 'USD') {
+        return Promise.resolve(1.0);
+    }
+  
+    return fetch(`https://api.coinbase.com/v2/prices/${transformedSymbol}-USD/spot`)
+      .then((res) => res.json())
+      .then((data: any) => parseFloat(data.data.amount));
+  }
+  
+  // TODO: ALSO IN GLADIUS ORDER FORM NEEDS TO BE A GLOBAL UTIL
+  const transformSymbol = (symbol: string) => {
+    switch (symbol.toUpperCase()) {
+      case 'WETH':
+        return 'ETH';
+      case 'CBETH':
+        return 'ETH';
+      case 'TEST':
+        return 'ETH';
+      case 'WMATIC':
+        return 'MATIC';
+      case 'USDC':
+        return 'USD';
+      case 'USDBC':
+        return 'USD';
+      case 'USDC.E':
+        return 'USD';
+      case 'WBTC':
+        return 'BTC';
+      default:
+        return symbol;
+    }
+  };
+  

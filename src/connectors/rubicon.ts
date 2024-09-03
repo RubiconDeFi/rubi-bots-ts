@@ -6,7 +6,7 @@ import axios from "axios";
 import MultiCall from "@indexed-finance/multicall";
 import { GLADIUS, MIN_ORDER_SIZES } from "../config/rubicon";
 import { permit2addresses, reactorAddresses } from "../config/tokens";
-import { getTokenInfoFromAddress } from "../utils.ts/rubicon";
+import { getTokenInfoFromAddress } from "../utils/rubicon";
 
 export class RubiconConnector {
     chainID: number;
@@ -129,6 +129,10 @@ export class RubiconConnector {
     // Function to place an order on Rubicon
     // ASSUME SIZE IS IN BASE AMOUNT
     async placeOrder(_size: number, price: number, isBid: boolean): Promise<any> {
+        if (_size <= 0) {
+            console.log("Size must be greater than 0 to place an order");
+            return;
+        }
         try {
             const inputToken = isBid ? this.quote : this.base;
             const outputToken = isBid ? this.base : this.quote;
@@ -168,7 +172,7 @@ export class RubiconConnector {
                     endAmount: outputAmount,
                     recipient: account,
                 })
-                .fillThreshold(BigNumber.from(1))
+                .fillThreshold(BigNumber.from(0))
                 .build();
 
             const { domain, types, values } = order.permitData();
@@ -218,6 +222,11 @@ export class RubiconConnector {
             // Ensure that we have a hash to cancel
             if (!orderHashToCancel) {
                 throw new Error("A hash to cancel is required.");
+            }
+
+            if (_newSize <= 0) {
+                console.log("Size must be greater than 0 to edit an order, cancelling the hash provided");
+                return this.cancelOrder(orderHashToCancel);
             }
 
             // Define the new order details

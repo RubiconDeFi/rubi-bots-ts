@@ -3,10 +3,11 @@ import axios from 'axios';
 import { formatUnits } from 'ethers/lib/utils';
 import { DutchOrder } from '@rubicondefi/gladius-sdk'; // Assuming DutchOrder is imported from Gladius SDK
 import { GenericOrderWithData } from '../types/rubicon'; // Import your interface
-import { parseOrders } from '../utils.ts/rubicon';
+import { parseOrders } from '../utils/rubicon';
 import { GLADIUS } from '../config/rubicon';
+import { MarketVenue } from '../types/MarketVenue';
 
-export class RubiconBookTracker {
+export class RubiconBookTracker implements MarketVenue {
     chainID: number;
     userAddress: string | undefined;
     baseAddress: string;
@@ -35,7 +36,7 @@ export class RubiconBookTracker {
 
         try {
             const [asks, bids] = await Promise.all([this.fetchAllOrders(asksUrl), this.fetchAllOrders(bidsUrl)]);
-            
+
             const parsedAsks = parseOrders(this.chainID, asks, this.baseAddress, this.quoteAddress, true);
             const parsedBids = parseOrders(this.chainID, bids, this.baseAddress, this.quoteAddress, false);
 
@@ -69,7 +70,16 @@ export class RubiconBookTracker {
         const cursorParam = cursor ? `&cursor=${cursor}` : '';
         const fullUrl = `${url}${cursorParam}`;
         try {
-            const response = await axios.get(fullUrl);
+            var queryParams: any = undefined;
+            // If an API key is configured, use that
+            if (process.env.RUBICON_API_KEY) {
+                queryParams = {
+                    headers: {
+                        "x-api-key": process.env.RUBICON_API_KEY
+                    }
+                };
+            }
+            const response = await axios.get(fullUrl, queryParams);
             return response.data;
         } catch (error) {
             console.error(`Error fetching orders from ${fullUrl}:`, error);
@@ -112,8 +122,7 @@ export class RubiconBookTracker {
 
     // Calculate and return the midpoint price
     async getMidPointPrice(): Promise<number | null> {
-        const bestBid = await this.getBestBid();
-        const bestAsk = await this.getBestAsk();
+        const [bestBid, bestAsk] = await Promise.all([this.getBestBid(), this.getBestAsk()]);
 
         if (bestBid === null || bestAsk === null) {
             return null;

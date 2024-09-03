@@ -17,3 +17,20 @@ export enum ORDER_STATUS {
     FILLED = 'filled',
     INSUFFICIENT_FUNDS = 'insufficient-funds',
 }
+
+export type SimpleBook = {
+    bids: GenericOrder[];
+    asks: GenericOrder[];
+  };
+  
+  export type GenericOrder = {
+    price: number;
+    size: number;
+  };
+  
+  export type Call = {
+    target: string;
+    function: string; //bytes ** CAN BE SOMETHING LIKE getBalance()
+    args: string[] | any[];
+  };
+  
