@@ -6,7 +6,7 @@ import axios from "axios";
 import MultiCall from "@indexed-finance/multicall";
 import { GLADIUS, MIN_ORDER_SIZES } from "../config/rubicon";
 import { permit2addresses, reactorAddresses } from "../config/tokens";
-import { getTokenInfoFromAddress } from "../utils.ts/rubicon";
+import { getTokenInfoFromAddress } from "../utils/rubicon";
 
 export class RubiconConnector {
     chainID: number;

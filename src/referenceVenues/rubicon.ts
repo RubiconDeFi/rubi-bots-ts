@@ -3,10 +3,11 @@ import axios from 'axios';
 import { formatUnits } from 'ethers/lib/utils';
 import { DutchOrder } from '@rubicondefi/gladius-sdk'; // Assuming DutchOrder is imported from Gladius SDK
 import { GenericOrderWithData } from '../types/rubicon'; // Import your interface
-import { parseOrders } from '../utils.ts/rubicon';
+import { parseOrders } from '../utils/rubicon';
 import { GLADIUS } from '../config/rubicon';
+import { MarketVenue } from '../types/MarketVenue';
 
-export class RubiconBookTracker {
+export class RubiconBookTracker implements MarketVenue {
     chainID: number;
     userAddress: string | undefined;
     baseAddress: string;
@@ -112,8 +113,7 @@ export class RubiconBookTracker {
 
     // Calculate and return the midpoint price
     async getMidPointPrice(): Promise<number | null> {
-        const bestBid = await this.getBestBid();
-        const bestAsk = await this.getBestAsk();
+        const [bestBid, bestAsk] = await Promise.all([this.getBestBid(), this.getBestAsk()]);
 
         if (bestBid === null || bestAsk === null) {
             return null;
