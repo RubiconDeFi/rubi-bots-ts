@@ -1,6 +1,6 @@
 import { ethers, BigNumber } from "ethers";
 import { TokenInfo } from "@uniswap/token-lists";
-import { GladiusOrderBuilder, GladiusOrder, NonceManager } from "@rubicondefi/gladius-sdk";
+import { GladiusOrderBuilder, GladiusOrder, NonceManager, GladiusOrderValidator } from "@rubicondefi/gladius-sdk";
 import { formatUnits, getAddress, parseUnits } from "ethers/lib/utils";
 import axios from "axios";
 import MultiCall from "@indexed-finance/multicall";
@@ -172,7 +172,7 @@ export class RubiconConnector {
                     endAmount: outputAmount,
                     recipient: account,
                 })
-                .fillThreshold(BigNumber.from(0))
+                .fillThreshold(BigNumber.from(1))
                 .build();
 
             const { domain, types, values } = order.permitData();
@@ -189,7 +189,7 @@ export class RubiconConnector {
             console.log("Order placed:", response.data);
             return response.data;
         } catch (error: any) {
-            console.error("Error placing order:", error);
+            console.error(`Error placing isbID ${isBid} size ${_size} price ${price} order:`, error.response.data);
             throw error;
         }
     }

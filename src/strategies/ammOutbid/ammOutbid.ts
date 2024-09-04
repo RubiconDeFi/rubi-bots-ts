@@ -170,8 +170,8 @@ export class AMMOutBid {
             const bidPrice = midPrice - priceStep;
             const askPrice = midPrice + priceStep;
 
-            const bidSize = (totalQuoteBalance / (this.orderLadderSize)) / bidPrice;
-            const askSize = totalAssetBalance / this.orderLadderSize;
+            const bidSize = ((totalQuoteBalance / (this.orderLadderSize)) / bidPrice) * 0.9;
+            const askSize = (totalAssetBalance / this.orderLadderSize) * 0.9;
 
             bidPrices.push({ price: bidPrice, size: bidSize });
             askPrices.push({ price: askPrice, size: askSize });
