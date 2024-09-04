@@ -64,6 +64,7 @@ export class RubiconConnector {
         }
 
         console.log("Rubicon Connector Initialized", "connected to", this.signer.address);
+        this.monitorNonceAndUpdateNextNoncesToUse();   
     }
 
     // Monitor on-chain balances and allowances
@@ -113,7 +114,11 @@ export class RubiconConnector {
     }
 
     // Method to monitor and update the next nonces to use
-    monitorNonceAndUpdateNextNoncesToUse() {
+    async monitorNonceAndUpdateNextNoncesToUse() {
+        const targetLengthToAcquire = 10;
+        // TODO: could do a multicall or read from permit2 mroe efficiently
+        this.nextNoncesToUse = await this.getAvailableNoncesNM(targetLengthToAcquire);
+
         setInterval(async () => {
             try {
                 const targetLengthToAcquire = 10;
@@ -123,7 +128,7 @@ export class RubiconConnector {
             } catch (error) {
                 console.error("Error monitoring nonces:", error);
             }
-        }, 5000); // Poll every 5 seconds to update nonces
+        }, 10000); // Poll every 5 seconds to update nonces
     }
 
     // Function to place an order on Rubicon
@@ -147,7 +152,6 @@ export class RubiconConnector {
             // Arbitrarily one minute for now... TODO: make configurable
             const _deadline = Math.floor(Date.now() / 1000) + 60;
 
-            // TODO: can probably optimize this...
             const orderNonce = this.nextNoncesToUse.length > 0 ? this.nextNoncesToUse.shift() : await new NonceManager(this.provider as ethers.providers.BaseProvider, this.chainID, this.permit2address).useNonce(account);
 
             const inputAmount = parseUnits(size.toFixed(inputToken.decimals), inputToken.decimals);
