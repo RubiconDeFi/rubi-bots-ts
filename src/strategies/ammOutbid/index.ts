@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 import { ethers } from "ethers";
-import { AMMOutBid } from "./AMMOutBid"; // Adjust the path if necessary
+import { AMMOutBid } from "./ammOutbid"; // Adjust the path if necessary
 
 // src/strategies/ammOutBid/index.ts
 
