@@ -10,6 +10,7 @@
     "@ethersproject/abi": "5.7",
     "@indexed-finance/multicall": "^2.0.0",
     "@rubicondefi/gladius-sdk": "^1.4.27",
+    "@types/node": "^22.5.3",
     "@uniswap/token-lists": "^1.0.0-beta.34",
     "dotenv": "^16.4.5",
     "ethers": "5",
@@ -19,9 +20,7 @@
     "tslib": "^2.6.3",
     "typescript": "^5.5.4"
   },
-  "devDependencies": {
-    "@types/node": "^22.5.3"
-  },
+  "devDependencies": {},
   "scripts": {
     "run:cexMarketMaking": "ts-node src/strategies/cexMarketMaking/index.ts",
     "run:ammOutbid": "ts-node src/strategies/ammOutbid/index.ts"
