@@ -21,27 +21,30 @@ export class CexMarketMaking {
 
     pollInterval: number;
     orderLadderSize: number; // Number of price levels (e.g., 3 bids and 3 asks)
+    priceStepFactor: number;
 
     constructor(
         chainID: number,
         walletWithProvider: ethers.Wallet,
-        userAddress: string,
+        // userAddress: string,
         baseAddress: string,
         quoteAddress: string,
         referenceCEXVenue: string,
         referenceCEXBaseTicker: string,
         referenceCEXQuoteTicker: string,
         pollInterval: number = 5000, // Poll every 5 seconds by default
-        orderLadderSize: number = 3 // Default to 3 levels of orders on each side (bid/ask)
+        orderLadderSize: number = 3, // Default to 3 levels of orders on each side (bid/ask)
+        priceStepFactor: number = 0.0005 // Note in this strategy, current bid ask spread based on
     ) {
         this.chainID = chainID;
-        this.userAddress = userAddress;
+        this.userAddress = walletWithProvider.address;
         this.baseAddress = baseAddress;
         this.quoteAddress = quoteAddress;
         this.provider = walletWithProvider.provider!;
         this.walletWithProvider = walletWithProvider;
         this.pollInterval = pollInterval;
         this.orderLadderSize = orderLadderSize;
+        this.priceStepFactor = priceStepFactor;
         this.referenceCEXBaseTicker = referenceCEXBaseTicker;
         this.referenceCEXQuoteTicker = referenceCEXQuoteTicker;
 
@@ -49,7 +52,7 @@ export class CexMarketMaking {
         this.rubiconConnector = new RubiconConnector(
             chainID,
             walletWithProvider,
-            userAddress,
+            this.userAddress,
             baseAddress,
             quoteAddress
         );
@@ -61,7 +64,7 @@ export class CexMarketMaking {
 
         this.rubiconBookWatcher = new RubiconBookTracker(
             chainID,
-            userAddress,
+            this.userAddress,
             baseAddress,
             quoteAddress
         );
@@ -131,7 +134,7 @@ export class CexMarketMaking {
 
         // Simple ladder logic for bids and asks (you can customize this)
         for (let i = 0; i < this.orderLadderSize; i++) {
-            const priceStep = midPrice * (0.0005 * (i + 1)); // Example price increment/decrement TODO: extrapolate to config
+            const priceStep = midPrice * (this.priceStepFactor * (i + 1)); // Example price increment/decrement TODO: extrapolate to config
             const bidPrice = midPrice - priceStep;
             const askPrice = midPrice + priceStep;
 

@@ -11,20 +11,60 @@ async function startCEXMarketMakingStrategy() {
     const args = process.argv.slice(2);
 
     if (args.length < 6) {
-        console.error("Please provide all required arguments: chainID, providerUrl, userAddress, baseAddress, quoteAddress, referenceCEXBaseTicker, referenceCEXQuoteTicker");
+        console.error("Please provide all required arguments: chainID, providerUrl, baseAddress, quoteAddress, referenceCEXBaseTicker, referenceCEXQuoteTicker");
+        console.error("Optional arguments: pollInterval, orderLadderSize, priceStepFactor");
         process.exit(1);
     }
 
     // Parse arguments
     const chainID = parseInt(args[0], 10);
     const providerUrl = args[1];
-    const userAddress = args[2];
-    const baseAddress = args[3];
-    const quoteAddress = args[4];
-    const referenceCEXBaseTicker = args[5];
-    const referenceCEXQuoteTicker = args[6];
+    const baseAddress = args[2];
+    const quoteAddress = args[3];
+    const referenceCEXBaseTicker = args[4];
+    const referenceCEXQuoteTicker = args[5];
+    const pollInterval = args[6] ? parseInt(args[6], 10) : undefined;
+    const orderLadderSize = args[7] ? parseInt(args[7], 10) : undefined;
+    const priceStepFactor = args[8] ? parseFloat(args[8]) : undefined;
 
-    // Set up the ethers provider
+    // Validate required inputs
+    if (isNaN(chainID)) {
+        throw new Error("Invalid chainID. Must be a number.");
+    }
+    if (!ethers.utils.isAddress(baseAddress) || !ethers.utils.isAddress(quoteAddress)) {
+        throw new Error("Invalid base or quote address. Must be valid Ethereum addresses.");
+    }
+    if (!referenceCEXBaseTicker || !referenceCEXQuoteTicker) {
+        throw new Error("Reference CEX tickers cannot be empty.");
+    }
+
+    // Validate optional inputs if provided
+    if (pollInterval !== undefined && isNaN(pollInterval)) {
+        throw new Error("Invalid pollInterval. Must be a number.");
+    }
+    if (orderLadderSize !== undefined && isNaN(orderLadderSize)) {
+        throw new Error("Invalid orderLadderSize. Must be a number.");
+    }
+    if (priceStepFactor !== undefined && isNaN(priceStepFactor)) {
+        throw new Error("Invalid priceStepFactor. Must be a number.");
+    }
+
+    // Log all configuration values
+    console.log("Starting CEX Market Making Strategy with the following configuration:");
+    console.log({
+        chainID,
+        providerUrl,
+        baseAddress,
+        quoteAddress,
+        referenceCEXVenue: "kraken", // This is hardcoded for now
+        referenceCEXBaseTicker,
+        referenceCEXQuoteTicker,
+        pollInterval: pollInterval || "default",
+        orderLadderSize: orderLadderSize || "default",
+        priceStepFactor: priceStepFactor || "default"
+    });
+
+    // Create a new wallet instance
     const provider = new ethers.providers.JsonRpcProvider(providerUrl);
 
     // User wallet with pk in .env as PRIVATE_KEY
@@ -34,21 +74,18 @@ async function startCEXMarketMakingStrategy() {
     }
     const userWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
-    if (userWallet.address.toLowerCase() !== userAddress.toLowerCase()) {
-        console.error("Private key does not match provided user address");
-        process.exit(1);
-    }
-
     // Instantiate the CexMarketMaking strategy
     const strategy = new CexMarketMaking(
         chainID,
         userWallet,
-        userAddress,
         baseAddress,
         quoteAddress,
         "kraken",
         referenceCEXBaseTicker,
-        referenceCEXQuoteTicker
+        referenceCEXQuoteTicker,
+        pollInterval,
+        orderLadderSize,
+        priceStepFactor
     );
 
     // Run the strategy
