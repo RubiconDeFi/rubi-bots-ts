@@ -23,6 +23,7 @@
   "devDependencies": {},
   "scripts": {
     "run:cexMarketMaking": "ts-node src/strategies/cexMarketMaking/index.ts",
-    "run:ammOutbid": "ts-node src/strategies/ammOutbid/index.ts"
+    "run:ammOutbid": "ts-node src/strategies/ammOutbid/index.ts",
+    "run:onchainAggregatorBid": "ts-node src/strategies/onchainAggregatorBid/index.ts"
   }
 }
