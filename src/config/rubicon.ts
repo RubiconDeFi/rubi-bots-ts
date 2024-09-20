@@ -13,3 +13,7 @@ export const MIN_ORDER_SIZES: Record<string, number> = {
     ARB: 4,
     OP: 3,
 };
+
+export const RUBICON_MARKET_ADDRESS_BY_CHAIN_ID: Record<number, string> = {
+    42161: "0xc715a30fde987637a082cf5f19c74648b67f2db8",
+};

@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import { OnchainAggregatorBidStrategy } from "./onchainAggregatorBid";
 import { TokenInfo } from "@uniswap/token-lists";
 import { getTokenInfoFromAddress } from "../../utils/rubicon";
+import { RUBICON_MARKET_ADDRESS_BY_CHAIN_ID } from "../../config/rubicon";
 
 dotenv.config();
 
@@ -72,7 +73,10 @@ async function startOnchainAggregatorBidStrategy() {
         quoteSymbol,
         chainID,
         baseToken,
-        quoteToken
+        quoteToken,
+        provider,
+        userWallet,
+        RUBICON_MARKET_ADDRESS_BY_CHAIN_ID[chainID]
     );
 
     // Function to run the strategy

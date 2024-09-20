@@ -109,4 +109,24 @@ export class ODOSReferenceVenue implements MarketVenue {
             return null;
         }
     }
+
+    async getBestBidAndAskBasedOnSize(baseAmount: number, quoteAmount: number): Promise<SimpleBook | null> {
+        try {
+            const [bidData, askData] = await Promise.all([
+                this.fetchODOSPriceData(this.baseToken, this.quoteToken, baseAmount.toString()),
+                this.fetchODOSPriceData(this.quoteToken, this.baseToken, quoteAmount.toString())
+            ]);
+
+            const bidPrice = this.calculatePrice(bidData.inAmounts[0], bidData.outAmounts[0], this.baseToken.decimals, this.quoteToken.decimals, false);
+            const askPrice = this.calculatePrice(askData.inAmounts[0], askData.outAmounts[0], this.quoteToken.decimals, this.baseToken.decimals, true);
+
+            return {
+                bids: [{ price: bidPrice, size: parseFloat(formatUnits(bidData.outAmounts[0], this.quoteToken.decimals)) / bidPrice }],
+                asks: [{ price: askPrice, size: parseFloat(formatUnits(askData.outAmounts[0], this.baseToken.decimals)) }]
+            };
+        } catch (error) {
+            console.error("Error getting best bid and ask based on size from ODOS:", error);
+            return null;
+        }
+    }
 }

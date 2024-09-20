@@ -1,9 +1,10 @@
 import { DutchOrder } from "@rubicondefi/gladius-sdk";
 import { BigNumber } from "ethers/lib/ethers";
 import { formatUnits } from "ethers/lib/utils";
-import { GenericOrderWithData, ORDER_STATUS } from "../types/rubicon";
+import { GenericOrderWithData, ORDER_STATUS, SimpleBook } from "../types/rubicon";
 import { tokenList } from "../config/tokens";
 import { TokenInfo } from "@uniswap/token-lists";
+import { OfferStatus } from "../connectors/rubionClassic";
 
 
 export function getTokenDecimals(tokenAddress: string, chainId: number): number {
@@ -97,3 +98,30 @@ export function getSymbolCurrentPriceUSDfromCB(symbol: string): Promise<number |
     }
   };
   
+
+  export function getSimpleBookFromOnchainPosition(onchainPositioning: OfferStatus[], baseToken: TokenInfo, quoteToken: TokenInfo): SimpleBook {
+    if (!onchainPositioning || !baseToken || !quoteToken) {
+        console.error('Invalid input for getSimpleBookFromOnchainPosition');
+        return { bids: [], asks: [] };
+    }
+
+    const bids: SimpleBook['bids'] = [];
+    const asks: SimpleBook['asks'] = [];
+
+    // format amounts from order to human readable, then get price and determine bid or ask
+    for (const offer of onchainPositioning) {
+      const isBid = offer.payGem == quoteToken.address;
+
+        const formattedPay = isBid? formatUnits(offer.payAmt, quoteToken.decimals): formatUnits(offer.payAmt, baseToken.decimals);
+        const formattedBuy = isBid? formatUnits(offer.buyAmt, baseToken.decimals): formatUnits(offer.buyAmt, quoteToken.decimals);
+        const price = isBid ? parseFloat(formattedPay) / parseFloat(formattedBuy) : parseFloat(formattedBuy) / parseFloat(formattedPay);
+
+        if (isBid) {
+            bids.push({ price, size: parseFloat(formattedBuy) });
+        } else {
+            asks.push({ price, size: parseFloat(formattedPay) });
+        }
+    }
+
+    return { bids, asks };
+}
