@@ -1,7 +1,7 @@
 // src/strategies/ammOutBid/AMMOutBid.ts
 import { ethers, BigNumber } from "ethers";
 import { UniswapReferenceVenue } from "../../referenceVenues/uni";
-import { RubiconConnector } from "../../connectors/rubicon";
+import { RubiconConnector } from "../../connectors/rubiconGladius";
 import { RubiconBookTracker } from "../../referenceVenues/rubicon";
 import { MIN_ORDER_SIZES } from "../../config/rubicon";
 import { TokenInfo } from "@uniswap/token-lists";

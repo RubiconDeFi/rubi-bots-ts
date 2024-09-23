@@ -1,5 +1,6 @@
 import { Kraken } from 'node-kraken-api';
 import { MarketVenue } from '../types/MarketVenue';
+import { SimpleBook } from '../types/rubicon';
 
 export class KrakenReferenceVenue implements MarketVenue {
     private pair: string;
@@ -9,14 +10,14 @@ export class KrakenReferenceVenue implements MarketVenue {
         this.kraken = new Kraken();
         this.pair = this.convertToKrakenPair(baseSymbol, quoteSymbol);
         console.log("ths pair is ", this.pair);
-        
+
     }
 
     // Convert base/quote symbols to Kraken pair format
     private convertToKrakenPair(baseSymbol: string, quoteSymbol: string): string {
         console.log("baseSymbol is ", baseSymbol);
         console.log("quoteSymbol is ", quoteSymbol);
-        
+
         const krakenBase = this.convertSymbolToKraken(baseSymbol);
         const krakenQuote = this.convertSymbolToKraken(quoteSymbol);
 
@@ -92,5 +93,13 @@ export class KrakenReferenceVenue implements MarketVenue {
             console.error("Error calculating mid-point price:", error);
             return null;
         }
+    }
+
+    async getBestBidAndAsk(): Promise<SimpleBook | null> {
+        const data: any = await this.fetchKrakenPriceData();
+        return {
+            bids: [{ price: data.b[0], size: data.b[1] }],
+            asks: [{ price: data.a[0], size: data.a[1] }]
+        };
     }
 }

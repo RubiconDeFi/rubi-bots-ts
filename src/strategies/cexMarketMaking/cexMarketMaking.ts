@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { RubiconConnector } from "../../connectors/rubicon";
+import { RubiconConnector } from "../../connectors/rubiconGladius";
 import { KrakenReferenceVenue } from "../../referenceVenues/kraken";
 import { RubiconBookTracker } from "../../referenceVenues/rubicon";
 import { MIN_ORDER_SIZES } from "../../config/rubicon";
