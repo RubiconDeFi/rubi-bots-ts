@@ -168,6 +168,7 @@ export class OnchainAggregatorBidStrategy {
         const buyGems: string[] = [];
 
         // Get balances from RubiconClassicConnector
+        // THESE ARE FUNDS NOT ON BOOK
         const baseBalance = this.rubiconClassicConnector.getBaseTokenBalance();
         const quoteBalance = this.rubiconClassicConnector.getQuoteTokenBalance();
 
@@ -176,7 +177,8 @@ export class OnchainAggregatorBidStrategy {
             orderIds.push(offer.id);
             if (offer.payGem === this.baseToken.address) {
                 // This is an ask order
-                const newPayAmt = baseBalance;
+                const baseBalanceAndOnBook = baseBalance.add(offer.payAmt);
+                const newPayAmt = baseBalanceAndOnBook;
                 const newBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(newPayAmt, this.baseToken.decimals)) * newAsk).toFixed(this.quoteToken.decimals), this.quoteToken.decimals);
                 payAmts.push(newPayAmt);
                 payGems.push(this.baseToken.address);
@@ -184,8 +186,9 @@ export class OnchainAggregatorBidStrategy {
                 buyGems.push(this.quoteToken.address);
             } else {
                 // This is a bid order
-                const newBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(quoteBalance, this.quoteToken.decimals)) / newBid).toFixed(this.baseToken.decimals), this.baseToken.decimals);
-                const newPayAmt = quoteBalance
+                const quoteBalanceAndOnBook = quoteBalance.add(offer.payAmt);
+                const newBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(quoteBalanceAndOnBook, this.quoteToken.decimals)) / newBid).toFixed(this.baseToken.decimals), this.baseToken.decimals);
+                const newPayAmt = quoteBalanceAndOnBook;
                 payAmts.push(newPayAmt);
                 payGems.push(this.quoteToken.address);
                 buyAmts.push(newBuyAmt);
@@ -214,6 +217,12 @@ export class OnchainAggregatorBidStrategy {
 
         // Execute batch requote or offer
         if (orderIds.length > 0) {
+            console.log('orderIds', orderIds);
+        
+            console.log('payAmts', payAmts);
+            console.log('payGems', payGems);
+            console.log('buyAmts', buyAmts);
+            console.log('buyGems', buyGems);
             await this.rubiconClassicConnector.batchRequote(orderIds, payAmts, payGems, buyAmts, buyGems);
         } else {
             console.log('No orders to requote, placing new orders'

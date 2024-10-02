@@ -81,7 +81,7 @@ export class RubiconClassicConnector {
             
             // Wait 2 seconds before approving
             await new Promise(resolve => setTimeout(resolve, quoteTokenBal.mul(1000)));
-            await this.approveToken(this.quoteTokenAddress, quoteTokenBal);
+            await this.approveToken(this.quoteTokenAddress, quoteTokenBal.mul(1000));
         }
         return { baseTokenCheck, quoteTokenCheck };
     }
