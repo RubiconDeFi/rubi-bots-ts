@@ -10,8 +10,8 @@ async function startCEXMarketMakingStrategy() {
     // Get command line arguments
     const args = process.argv.slice(2);
 
-    if (args.length < 6) {
-        console.error("Please provide all required arguments: chainID, providerUrl, baseAddress, quoteAddress, referenceCEXBaseTicker, referenceCEXQuoteTicker");
+    if (args.length < 7) {
+        console.error("Please provide all required arguments: chainID, providerUrl, baseAddress, quoteAddress, referenceCEXBaseTicker, referenceCEXQuoteTicker, fundsHolderAddress");
         console.error("Optional arguments: pollInterval, orderLadderSize, priceStepFactor");
         process.exit(1);
     }
@@ -23,16 +23,17 @@ async function startCEXMarketMakingStrategy() {
     const quoteAddress = args[3];
     const referenceCEXBaseTicker = args[4];
     const referenceCEXQuoteTicker = args[5];
-    const pollInterval = args[6] ? parseInt(args[6], 10) : undefined;
-    const orderLadderSize = args[7] ? parseInt(args[7], 10) : undefined;
-    const priceStepFactor = args[8] ? parseFloat(args[8]) : undefined;
+    const fundsHolderAddress = ethers.utils.getAddress(args[6]);
+    const pollInterval = args[7] ? parseInt(args[7], 10) : undefined;
+    const orderLadderSize = args[8] ? parseInt(args[8], 10) : undefined;
+    const priceStepFactor = args[9] ? parseFloat(args[9]) : undefined;
 
     // Validate required inputs
     if (isNaN(chainID)) {
         throw new Error("Invalid chainID. Must be a number.");
     }
-    if (!ethers.utils.isAddress(baseAddress) || !ethers.utils.isAddress(quoteAddress)) {
-        throw new Error("Invalid base or quote address. Must be valid Ethereum addresses.");
+    if (!ethers.utils.isAddress(baseAddress) || !ethers.utils.isAddress(quoteAddress) || !ethers.utils.isAddress(fundsHolderAddress)) {
+        throw new Error("Invalid base, quote, or funds holder address. Must be valid Ethereum addresses.");
     }
     if (!referenceCEXBaseTicker || !referenceCEXQuoteTicker) {
         throw new Error("Reference CEX tickers cannot be empty.");
@@ -56,6 +57,7 @@ async function startCEXMarketMakingStrategy() {
         providerUrl,
         baseAddress,
         quoteAddress,
+        fundsHolderAddress,
         referenceCEXVenue: "kraken", // This is hardcoded for now
         referenceCEXBaseTicker,
         referenceCEXQuoteTicker,
@@ -78,6 +80,7 @@ async function startCEXMarketMakingStrategy() {
     const strategy = new CexMarketMaking(
         chainID,
         userWallet,
+        fundsHolderAddress,
         baseAddress,
         quoteAddress,
         "kraken",

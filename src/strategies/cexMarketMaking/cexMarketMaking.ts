@@ -26,7 +26,7 @@ export class CexMarketMaking {
     constructor(
         chainID: number,
         walletWithProvider: ethers.Wallet,
-        // userAddress: string,
+        userAddress: string,
         baseAddress: string,
         quoteAddress: string,
         referenceCEXVenue: string,
@@ -37,7 +37,7 @@ export class CexMarketMaking {
         priceStepFactor: number = 0.0005 // Note in this strategy, current bid ask spread based on
     ) {
         this.chainID = chainID;
-        this.userAddress = walletWithProvider.address;
+        this.userAddress = userAddress;
         this.baseAddress = baseAddress;
         this.quoteAddress = quoteAddress;
         this.provider = walletWithProvider.provider!;
