@@ -10,8 +10,8 @@ async function startAMMOutBidStrategy() {
     // Get command line arguments
     const args = process.argv.slice(2);
 
-    if (args.length < 4) {
-        console.error("Please provide all required arguments: chainID, providerUrl, baseAddress, quoteAddress, feeTier");
+    if (args.length < 5) {
+        console.error("Please provide all required arguments: chainID, providerUrl, baseAddress, quoteAddress, feeTier, fundsHolderAddress");
         process.exit(1);
     }
 
@@ -21,12 +21,13 @@ async function startAMMOutBidStrategy() {
     const baseAddress = args[2];
     const quoteAddress = args[3];
     const feeTier = ethers.BigNumber.from(args[4]);
+    const fundsHolderAddress = ethers.utils.getAddress(args[5]);
 
     // Check if optional arguments exist
-    const orderLadderLength = args[5] ? parseInt(args[5], 10) : undefined;
-    const priceLadderFactor = args[6] ? parseFloat(args[6]) : undefined;
-    const pollInterval = args[7] ? parseInt(args[7], 10) : 5000;
-    const isUniv2 = args[8] ? args[8].toLowerCase() === "true" : undefined;
+    const orderLadderLength = args[6] ? parseInt(args[6], 10) : undefined;
+    const priceLadderFactor = args[7] ? parseFloat(args[7]) : undefined;
+    const pollInterval = args[8] ? parseInt(args[8], 10) : 5000;
+    const isUniv2 = args[9] ? args[9].toLowerCase() === "true" : undefined;
 
     // Set up the ethers provider
     const provider = new ethers.providers.JsonRpcProvider(providerUrl);
@@ -37,13 +38,12 @@ async function startAMMOutBidStrategy() {
         process.exit(1);
     }
     const userWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-    const userAddress = userWallet.address;
 
     // Instantiate the AMMOutBid strategy
     const strategy = new AMMOutBid(
         chainID,
         userWallet,
-        userAddress,
+        fundsHolderAddress,
         baseAddress,
         quoteAddress,
         feeTier,

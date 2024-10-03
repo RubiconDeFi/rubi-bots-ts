@@ -134,6 +134,7 @@ export class RubiconConnector {
     // Function to place an order on Rubicon
     // ASSUME SIZE IS IN BASE AMOUNT
     async placeOrder(_size: number, price: number, isBid: boolean): Promise<any> {
+        // console.log("Placing order", _size, price, isBid);
         if (_size <= 0) {
             console.log("Size must be greater than 0 to place an order");
             return;
@@ -179,6 +180,8 @@ export class RubiconConnector {
                 .fillThreshold(BigNumber.from(1))
                 .build();
 
+            // console.log("Order built...");
+
             const { domain, types, values } = order.permitData();
             const signature = await this.signer._signTypedData(domain, types, values);
             const serializedOrder = order.serialize();
@@ -189,11 +192,12 @@ export class RubiconConnector {
                 chainId: this.chainID,
             };
 
+            // console.log("Sending order to Rubicon...");
             const response = await axios.post(`${this.GLADIUS_URL}/dutch-auction/order`, payload);
             console.log("Order placed:", response.data);
             return response.data;
         } catch (error: any) {
-            console.error(`Error placing isbID ${isBid} size ${_size} price ${price} order:`, error.response.data);
+            console.error(`Error placing isbID ${isBid} size ${_size} price ${price} order:`, error);
             throw error;
         }
     }
@@ -205,7 +209,7 @@ export class RubiconConnector {
             const response = await axios.post(`${this.GLADIUS_URL}/dutch-auction/cancel`, {
                 signature: sig,
                 hash: orderHash,
-                swapper: this.signer.address,
+                swapper: this.userAddress,
             });
 
             console.log("Order cancelled:", response.data);
@@ -246,9 +250,9 @@ export class RubiconConnector {
             //     return;
             //  }
 
-            if (this.signer.address != account) {
-                throw new Error("Account does not match signer");
-            }
+            // if (this.signer.address != account) {
+            //     throw new Error("Account does not match signer");
+            // }
             
             // Sign the original order hash
             const originalOrderSignature = await this.signer.signMessage(orderHashToCancel);
