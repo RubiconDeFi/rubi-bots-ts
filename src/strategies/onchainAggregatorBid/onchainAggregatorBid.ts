@@ -2,10 +2,9 @@ import { TokenInfo } from '@uniswap/token-lists';
 import { ODOSReferenceVenue } from '../../referenceVenues/odos';
 import { ethers } from 'ethers';
 import { KrakenReferenceVenue } from '../../referenceVenues/kraken';
-import ERC20_ABI from "../../constants/ERC20.json";
-import { OfferStatus, RubiconClassicConnector } from '../../connectors/rubionClassic';
-import { getSimpleBookFromOnchainPosition } from '../../utils/rubicon';
+import { RubiconClassicConnector } from '../../connectors/rubionClassicMarketAid';
 import { formatUnits } from 'ethers/lib/utils';
+import { MIN_ORDER_SIZES } from '../../config/rubicon';
 
 export class OnchainAggregatorBidStrategy {
     private odosReferenceVenue: ODOSReferenceVenue;
@@ -25,7 +24,8 @@ export class OnchainAggregatorBidStrategy {
         quoteToken: TokenInfo,
         provider: ethers.providers.Provider,
         userWallet: ethers.Wallet,
-        marketAddress: string
+        marketAddress: string,
+        marketAidAddress: string
     ) {
         this.userWallet = userWallet;
         this.baseToken = baseToken;
@@ -46,6 +46,7 @@ export class OnchainAggregatorBidStrategy {
             provider,
             userWallet,
             marketAddress,
+            marketAidAddress,
             baseToken.address,
             quoteToken.address
         )
@@ -54,7 +55,7 @@ export class OnchainAggregatorBidStrategy {
 
     private async breifStartupWait() {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        await this.rubiconClassicConnector.checkApprovals();
+        // Remove checkApprovals as it's not needed with MarketAid
         await new Promise(resolve => setTimeout(resolve, 1000));
         this.startupFinished = true;
     }
@@ -81,13 +82,10 @@ export class OnchainAggregatorBidStrategy {
 
         // 3. Check current onchain positioning
         const onchainPositioning = this.rubiconClassicConnector.getOutstandingOffers();
-        // console.log('Onchain Positioning:', onchainPositioning);
-        // current positioning
-        const onchainBook = getSimpleBookFromOnchainPosition(onchainPositioning, this.baseToken, this.quoteToken);
-
-        console.log('Onchain Book:', onchainBook);
+        console.log('Onchain Positioning:', onchainPositioning);
 
         // 4. Update logic
+        // TODO: SOLVE FOR THIS VALUE
         const volatilityThreshold = 0.02; // 2% threshold, adjust as needed
         const krakenBestBid = (krakenData.bids[0].price);
         const krakenBestAsk = (krakenData.asks[0].price);
@@ -95,12 +93,10 @@ export class OnchainAggregatorBidStrategy {
 
         if (isHighVolatility) {
             // 4.1 If it is a high volatility period, remove orders from book
-            await this.removeAllOrders(onchainPositioning);
+            await this.removeAllOrders();
         } else {
             console.log('LOW VOLATILITY PROCEED TO QUOTE');
             // IF ODOS price data is crossed, we just use Kraken data
-            // TOOD: THIS NEEDS WORK....
-            // NEED TO OUTBID ODOS WHEN It's Not offsides from Kaken, otherwise fall back to Krakn...
             var newBid;
             var newAsk;
             if (odosData.bestBid > odosData.bestAsk) {
@@ -124,135 +120,100 @@ export class OnchainAggregatorBidStrategy {
             }
             console.log("TARGETTING THIS OUTBID SPREAD, bid, ask:", newBid, newAsk);
 
-            // TODO: handl case where they're crossed!!!
-
-            // IF no offer oustanding, place initial orders
-            if (onchainBook.bids.length === 0 && onchainBook.asks.length === 0) {
+            // IF no offer outstanding, place initial orders
+            if (onchainPositioning.length === 0) {
                 console.log('No onchain offers outstanding, placing initial orders');
-
-                return await this.updateOrders(onchainPositioning, newBid, newAsk);
+                return await this.placeInitialOrders(newBid, newAsk);
             }
 
             // 4.2 If it is a low volatility period, add or update orders to book that outbid ODOS spread
-
             // 4.3 Check if the new positioning is too offsides based on Kraken data
             const krakenMidPrice = (krakenBestBid + krakenBestAsk) / 2;
             const maxDeviation = 0.01; // 1% max deviation from Kraken mid price
 
             if (Math.abs(newBid - krakenMidPrice) / krakenMidPrice <= maxDeviation &&
                 Math.abs(newAsk - krakenMidPrice) / krakenMidPrice <= maxDeviation) {
-                // DO NOTHING BECAUSE IN POSITION!
                 console.log('DO NOTHING BECAUSE THINK IN POSITION!');
                 return;
             } else {
                 console.log('New positioning too offsides REQUOTE');
-                // Use Kraken mid price to set orders when ODOS data is too offsides
-                await this.updateOrders(onchainPositioning, newBid, newAsk);
+                await this.updateOrders(newBid, newAsk);
             }
         }
     }
 
-    private async removeAllOrders(onchainPositioning: OfferStatus[]): Promise<void> {
-        const orderIds = onchainPositioning.map(offer => offer.id);
-        if (orderIds.length > 0) {
-            await this.rubiconClassicConnector.batchCancel(orderIds);
+    private async removeAllOrders(): Promise<void> {
+        const outstandingUIDs = this.rubiconClassicConnector.getOutstandingUIDs();
+        if (outstandingUIDs.length > 0) {
+            await this.rubiconClassicConnector.batchCancel(outstandingUIDs);
             console.log('Removed all orders due to high volatility');
         }
     }
 
-    private async updateOrders(onchainPositioning: OfferStatus[], newBid: number, newAsk: number): Promise<void> {
-        const orderIds: ethers.BigNumber[] = [];
-        const payAmts: ethers.BigNumber[] = [];
-        const payGems: string[] = [];
-        const buyAmts: ethers.BigNumber[] = [];
-        const buyGems: string[] = [];
-
-        // Get balances from RubiconClassicConnector
-        // THESE ARE FUNDS NOT ON BOOK
+    private async placeInitialOrders(newBid: number, newAsk: number): Promise<void> {
         const baseBalance = this.rubiconClassicConnector.getBaseTokenBalance();
         const quoteBalance = this.rubiconClassicConnector.getQuoteTokenBalance();
 
-        // Prepare batch requote for existing orders
-        for (const offer of onchainPositioning) {
-            orderIds.push(offer.id);
-            if (offer.payGem === this.baseToken.address) {
-                // This is an ask order
-                const baseBalanceAndOnBook = baseBalance.add(offer.payAmt);
-                const newPayAmt = baseBalanceAndOnBook;
-                const newBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(newPayAmt, this.baseToken.decimals)) * newAsk).toFixed(this.quoteToken.decimals), this.quoteToken.decimals);
-                payAmts.push(newPayAmt);
-                payGems.push(this.baseToken.address);
-                buyAmts.push(newBuyAmt);
-                buyGems.push(this.quoteToken.address);
-            } else {
-                // This is a bid order
-                const quoteBalanceAndOnBook = quoteBalance.add(offer.payAmt);
-                const newBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(quoteBalanceAndOnBook, this.quoteToken.decimals)) / newBid).toFixed(this.baseToken.decimals), this.baseToken.decimals);
-                const newPayAmt = quoteBalanceAndOnBook;
-                payAmts.push(newPayAmt);
-                payGems.push(this.quoteToken.address);
-                buyAmts.push(newBuyAmt);
-                buyGems.push(this.baseToken.address);
-            }
-        }
+        const bidBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(quoteBalance, this.quoteToken.decimals)) / newBid).toFixed(this.baseToken.decimals), this.baseToken.decimals);
+        const bidPayAmt = quoteBalance;
+        const askPayAmt = baseBalance;
+        const askBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(askPayAmt, this.baseToken.decimals)) * newAsk).toFixed(this.quoteToken.decimals), this.quoteToken.decimals);
 
-        // Add new orders if necessary
-        if (orderIds.length === 0) {
-            // Add new bid order
-            const bidBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(quoteBalance, this.quoteToken.decimals)) / newBid).toFixed(this.baseToken.decimals), this.baseToken.decimals);
-            const bidPayAmt = quoteBalance
-            payAmts.push(bidPayAmt);
-            payGems.push(this.quoteToken.address);
-            buyAmts.push(bidBuyAmt);
-            buyGems.push(this.baseToken.address);
+        const MIN_BASE_SIZE = ethers.utils.parseUnits(MIN_ORDER_SIZES[this.baseToken.symbol].toString(), this.baseToken.decimals);
+        const MIN_QUOTE_SIZE = ethers.utils.parseUnits(MIN_ORDER_SIZES[this.quoteToken.symbol].toString(), this.quoteToken.decimals);
 
-            // Add new ask order
-            const askPayAmt = baseBalance;
-            const askBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(askPayAmt, this.baseToken.decimals)) * newAsk).toFixed(this.quoteToken.decimals), this.quoteToken.decimals);
-            payAmts.push(askPayAmt);
-            payGems.push(this.baseToken.address);
-            buyAmts.push(askBuyAmt);
-            buyGems.push(this.quoteToken.address);
-        }
+        const finalAskPayAmt = askPayAmt.gte(MIN_BASE_SIZE) ? askPayAmt : ethers.BigNumber.from('0');
+        const finalAskBuyAmt = askPayAmt.gte(MIN_BASE_SIZE) ? askBuyAmt : ethers.BigNumber.from('0');
+        const finalBidPayAmt = bidPayAmt.gte(MIN_QUOTE_SIZE) ? bidPayAmt : ethers.BigNumber.from('0');
+        const finalBidBuyAmt = bidPayAmt.gte(MIN_QUOTE_SIZE) ? bidBuyAmt : ethers.BigNumber.from('0');
 
-        // Execute batch requote or offer
-        if (orderIds.length > 0) {
-            console.log('orderIds', orderIds);
+        console.log("Placing initial orders with these values: ", [finalAskPayAmt], [finalAskBuyAmt], [finalBidPayAmt], [finalBidBuyAmt]);
         
-            console.log('payAmts', payAmts);
-            console.log('payGems', payGems);
-            console.log('buyAmts', buyAmts);
-            console.log('buyGems', buyGems);
-            await this.rubiconClassicConnector.batchRequote(orderIds, payAmts, payGems, buyAmts, buyGems);
-        } else {
-            console.log('No orders to requote, placing new orders'
-            );
-            // LOG
-            console.log('payAmts', payAmts);
-            console.log('payGems', payGems);
-            console.log('buyAmts', buyAmts);
-            console.log('buyGems', buyGems);
-            await this.rubiconClassicConnector.batchOffer(payAmts, payGems, buyAmts, buyGems);
-        }
+        await this.rubiconClassicConnector.batchOffer(
+            [finalAskPayAmt],
+            [finalAskBuyAmt],
+            [finalBidPayAmt],
+            [finalBidBuyAmt]
+        );
+    }
 
-        console.log('Updated orders with new bid/ask prices');
+    private async updateOrders(newBid: number, newAsk: number): Promise<void> {
+        const outstandingUIDs = this.rubiconClassicConnector.getOutstandingUIDs();
+        const baseBalance = this.rubiconClassicConnector.getBaseTokenBalance();
+        const quoteBalance = this.rubiconClassicConnector.getQuoteTokenBalance();
+
+        const bidBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(quoteBalance, this.quoteToken.decimals)) / newBid).toFixed(this.baseToken.decimals), this.baseToken.decimals);
+        const bidPayAmt = quoteBalance;
+        const askPayAmt = baseBalance;
+        const askBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(askPayAmt, this.baseToken.decimals)) * newAsk).toFixed(this.quoteToken.decimals), this.quoteToken.decimals);
+
+        const MIN_BASE_SIZE = ethers.utils.parseUnits(MIN_ORDER_SIZES[this.baseToken.symbol].toString(), this.baseToken.decimals);
+        const MIN_QUOTE_SIZE = ethers.utils.parseUnits(MIN_ORDER_SIZES[this.quoteToken.symbol].toString(), this.quoteToken.decimals);
+
+        const finalAskPayAmt = askPayAmt.gte(MIN_BASE_SIZE) ? askPayAmt : ethers.BigNumber.from('0');
+        const finalAskBuyAmt = askPayAmt.gte(MIN_BASE_SIZE) ? askBuyAmt : ethers.BigNumber.from('0');
+        const finalBidPayAmt = bidPayAmt.gte(MIN_QUOTE_SIZE) ? bidPayAmt : ethers.BigNumber.from('0');
+        const finalBidBuyAmt = bidPayAmt.gte(MIN_QUOTE_SIZE) ? bidBuyAmt : ethers.BigNumber.from('0');
+
+        if (outstandingUIDs.length > 0) {
+            await this.rubiconClassicConnector.batchRequote(
+                outstandingUIDs,
+                [finalAskPayAmt],
+                [finalAskBuyAmt],
+                [finalBidPayAmt],
+                [finalBidBuyAmt]
+            );
+        } else {
+            await this.placeInitialOrders(newBid, newAsk);
+        }
     }
 
     async getODOSBidAsk(): Promise<{ bestBid: number, bestAsk: number, midPointPrice: number } | undefined> {
         try {
             const bestBidAndAsk = await this.odosReferenceVenue.getBestBidAndAskBasedOnSize(1, 2500);
-            // const midPointPrice = await this.odosReferenceVenue.getMidPointPrice();
-            // const bestBidAndAsk = await this.odosReferenceVenue.getBestBidAndAsk();
             const bestBid = bestBidAndAsk?.bids[0].price!;
             const bestAsk = bestBidAndAsk?.asks[0].price!;
             const midPointPrice = (bestBid + bestAsk) / 2;
-
-
-            // console.log('ODOS Reference Venue Information:');
-            // console.log(`Best Bid: ${bestBid}`);
-            // console.log(`Best Ask: ${bestAsk}`);
-            // console.log(`Mid Point Price: ${midPointPrice}`);
-            // console.log('Best Bid and Ask:', bestBidAndAsk);
 
             return {
                 bestBid,
@@ -266,7 +227,6 @@ export class OnchainAggregatorBidStrategy {
     }
 
     async shouldExecute(): Promise<boolean> {
-        // For now, always return true to test the strategy
         return this.startupFinished;
     }
 

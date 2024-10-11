@@ -2,6 +2,7 @@ import { Contract, ethers } from "ethers";
 import RUBICON_MARKET_ABI from "../constants/RubiconMarket.json";
 import ERC20_ABI from "../constants/ERC20.json";
 import MARKET_AID_ABI from "../constants/MarketAid.json";
+import { formatUnits } from "ethers/lib/utils";
 
 // Define the MarketOffer struct
 interface MarketOffer {
@@ -25,14 +26,16 @@ export class RubiconClassicConnector {
     private quoteTokenBalance: ethers.BigNumber = ethers.constants.Zero;
     private outstandingOffers: MarketOffer[] = [];
     private outstandingUIDs: ethers.BigNumber[] = [];
-
+    private updateIntervalSeconds: number; // FREQUENCY FOR ONCHAIN GET UPDATES
+    
     constructor(
         provider: ethers.providers.Provider,
         userWallet: ethers.Wallet,
         rubiconMarketAddress: string,
         marketAidAddress: string,
         baseTokenAddress: string,
-        quoteTokenAddress: string
+        quoteTokenAddress: string,
+        updateIntervalSeconds: number = 2
     ) {
         this.provider = provider;
         this.signer = userWallet;
@@ -40,8 +43,12 @@ export class RubiconClassicConnector {
         this.marketAid = new Contract(marketAidAddress, MARKET_AID_ABI, this.signer);
         this.baseTokenAddress = baseTokenAddress;
         this.quoteTokenAddress = quoteTokenAddress;
+        this.updateIntervalSeconds = updateIntervalSeconds;
         this.startBalanceUpdate();
         this.startPeriodicUpdate();
+        
+
+        this.updateIntervalSeconds = updateIntervalSeconds;
 
         if (!this.rubiconMarket) {
             throw new Error("Rubicon Market is undefined");
@@ -58,7 +65,12 @@ export class RubiconClassicConnector {
     }
 
     private startPeriodicUpdate() {
-        this.updateInterval = setInterval(this.updateOutstandingOrders.bind(this), 60000); // Update every minute
+        console.log("Starting periodic update with interval:", this.updateIntervalSeconds, "seconds");
+        const val = this.updateIntervalSeconds * 1000;
+        if (val == undefined || isNaN(val) || val == 0) {
+            throw new Error("Update interval is undefined");
+        }
+        this.updateInterval = setInterval(this.updateOutstandingOrders.bind(this), val); // Update every minute
     }
 
     private async updateOutstandingOrders() {
@@ -76,6 +88,9 @@ export class RubiconClassicConnector {
                 this.signer.address
             );
             this.outstandingUIDs = uids;
+
+            console.log("Outstanding offers:", this.outstandingOffers);
+            console.log("Outstanding UIDs:", this.outstandingUIDs);
         } catch (error) {
             console.error("Error updating outstanding orders:", error);
         }
@@ -109,17 +124,21 @@ export class RubiconClassicConnector {
     }
 
     async batchOffer(
-        payAmts: ethers.BigNumber[],
-        payGems: string[],
-        buyAmts: ethers.BigNumber[],
-        buyGems: string[]
+        askNumerators: ethers.BigNumber[],
+        askDenominators: ethers.BigNumber[],
+        bidNumerators: ethers.BigNumber[],
+        bidDenominators: ethers.BigNumber[]
     ): Promise<ethers.ContractTransaction> {
-        return this.marketAid.batchMarketMakingTrades(
+        console.log("this token pair is ", [this.baseTokenAddress, this.quoteTokenAddress]);
+        
+        console.log("this ask pay amount and base balance is ", formatUnits(askNumerators[0]), this.baseTokenBalance);
+        
+        return this.marketAid.functions['batchMarketMakingTrades(address[2],uint256[],uint256[],uint256[],uint256[])'](
             [this.baseTokenAddress, this.quoteTokenAddress],
-            payAmts,
-            buyAmts,
-            new Array(payAmts.length).fill(ethers.constants.Zero),
-            new Array(payAmts.length).fill(ethers.constants.Zero)
+            askNumerators,
+            askDenominators,
+            bidNumerators,
+            bidDenominators
         );
     }
 
@@ -129,18 +148,21 @@ export class RubiconClassicConnector {
 
     async batchRequote(
         ids: ethers.BigNumber[],
-        payAmts: ethers.BigNumber[],
-        payGems: string[],
-        buyAmts: ethers.BigNumber[],
-        buyGems: string[]
+        askNumerators: ethers.BigNumber[],
+        askDenominators: ethers.BigNumber[],
+        bidNumerators: ethers.BigNumber[],
+        bidDenominators: ethers.BigNumber[]
     ): Promise<ethers.ContractTransaction> {
-        return this.marketAid.batchRequoteOffers(
+        if (ids.length != askNumerators.length || ids.length != askDenominators.length || ids.length != bidNumerators.length || ids.length != bidDenominators.length) {
+            throw new Error("IDs, payAmts, and buyAmts must have the same length");
+        }
+        return this.marketAid.functions['batchRequoteOffers(uint256[],address[2],uint256[],uint256[],uint256[],uint256[])'](
             ids,
             [this.baseTokenAddress, this.quoteTokenAddress],
-            payAmts,
-            buyAmts,
-            new Array(payAmts.length).fill(ethers.constants.Zero),
-            new Array(payAmts.length).fill(ethers.constants.Zero)
+            askNumerators,
+            askDenominators,
+            bidNumerators,
+            bidDenominators
         );
     }
 
@@ -180,12 +202,14 @@ export class RubiconClassicConnector {
                 this.signer.address
             );
 
-            this.baseTokenBalance = assetWeiAmount;
-            this.quoteTokenBalance = quoteWeiAmount;
+            // Store 99.9% of the actual balance
+            // HACKY BC ROUNDING ERRORS SOMEHWERE OR MAYBE THE MARKET AID zero bal issue
+            this.baseTokenBalance = assetWeiAmount.mul(999).div(1000);
+            this.quoteTokenBalance = quoteWeiAmount.mul(999).div(1000);
 
-            // You might want to do something with the 'status' boolean if needed
-            // For example, log it or store it in a class property
-            console.log(`Liquidity status: ${status}`);
+            // // You might want to do something with the 'status' boolean if needed
+            // // For example, log it or store it in a class property
+            // console.log(`Liquidity status: ${status}`);
         } catch (error) {
             console.error("Error updating balances:", error);
         }

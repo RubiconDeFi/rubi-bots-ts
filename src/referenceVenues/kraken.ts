@@ -30,9 +30,11 @@ export class KrakenReferenceVenue implements MarketVenue {
             case 'ETH':
                 return 'XETH';
             case 'USD':
-                return 'ZUSD';
+                return 'USD';
             case 'BTC':
                 return 'XXBT';
+            case 'OP':
+                return 'OP';
             // Add more symbol mappings as needed
             default:
                 return symbol;
