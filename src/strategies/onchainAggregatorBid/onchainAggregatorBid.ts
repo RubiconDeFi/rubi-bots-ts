@@ -82,7 +82,7 @@ export class OnchainAggregatorBidStrategy {
 
         // 3. Check current onchain positioning
         const onchainPositioning = this.rubiconClassicConnector.getOutstandingOffers();
-        console.log('Onchain Positioning:', onchainPositioning);
+        // console.log('Onchain Positioning:', onchainPositioning);
 
         // 4. Update logic
         // TODO: SOLVE FOR THIS VALUE
@@ -122,7 +122,7 @@ export class OnchainAggregatorBidStrategy {
 
             // IF no offer outstanding, place initial orders
             if (onchainPositioning.length === 0) {
-                console.log('No onchain offers outstanding, placing initial orders');
+                console.log('\n🌻No onchain offers outstanding, placing initial orders');
                 return await this.placeInitialOrders(newBid, newAsk);
             }
 
@@ -136,7 +136,7 @@ export class OnchainAggregatorBidStrategy {
                 console.log('DO NOTHING BECAUSE THINK IN POSITION!');
                 return;
             } else {
-                console.log('New positioning too offsides REQUOTE');
+                console.log('\n📐 New positioning too offsides REQUOTE');
                 await this.updateOrders(newBid, newAsk);
             }
         }

@@ -89,8 +89,8 @@ export class RubiconClassicConnector {
             );
             this.outstandingUIDs = uids;
 
-            console.log("Outstanding offers:", this.outstandingOffers);
-            console.log("Outstanding UIDs:", this.outstandingUIDs);
+            // console.log("Outstanding offers:", this.outstandingOffers);
+            // console.log("Outstanding UIDs:", this.outstandingUIDs);
         } catch (error) {
             console.error("Error updating outstanding orders:", error);
         }
@@ -110,17 +110,20 @@ export class RubiconClassicConnector {
         buyAmt: ethers.BigNumber,
         buyGem: string
     ): Promise<ethers.ContractTransaction> {
+        const gasPrice = await this.getGasPriceWithBuffer();
         return this.marketAid.placeMarketMakingTrades(
             [payGem, buyGem],
             payAmt,
             buyAmt,
             ethers.constants.Zero,
-            ethers.constants.Zero
+            ethers.constants.Zero,
+            { gasPrice }
         );
     }
 
     async cancel(id: ethers.BigNumber): Promise<ethers.ContractTransaction> {
-        return this.marketAid.scrubStrategistTrade(id);
+        const gasPrice = await this.getGasPriceWithBuffer();
+        return this.marketAid.scrubStrategistTrade(id, { gasPrice });
     }
 
     async batchOffer(
@@ -130,20 +133,23 @@ export class RubiconClassicConnector {
         bidDenominators: ethers.BigNumber[]
     ): Promise<ethers.ContractTransaction> {
         console.log("this token pair is ", [this.baseTokenAddress, this.quoteTokenAddress]);
-        
         console.log("this ask pay amount and base balance is ", formatUnits(askNumerators[0]), this.baseTokenBalance);
+        
+        const gasPrice = await this.getGasPriceWithBuffer();
         
         return this.marketAid.functions['batchMarketMakingTrades(address[2],uint256[],uint256[],uint256[],uint256[])'](
             [this.baseTokenAddress, this.quoteTokenAddress],
             askNumerators,
             askDenominators,
             bidNumerators,
-            bidDenominators
+            bidDenominators,
+            { gasPrice }
         );
     }
 
     async batchCancel(ids: ethers.BigNumber[]): Promise<ethers.ContractTransaction> {
-        return this.marketAid.scrubStrategistTrades(ids);
+        const gasPrice = await this.getGasPriceWithBuffer();
+        return this.marketAid.scrubStrategistTrades(ids, { gasPrice });
     }
 
     async batchRequote(
@@ -156,13 +162,15 @@ export class RubiconClassicConnector {
         if (ids.length != askNumerators.length || ids.length != askDenominators.length || ids.length != bidNumerators.length || ids.length != bidDenominators.length) {
             throw new Error("IDs, payAmts, and buyAmts must have the same length");
         }
+        const gasPrice = await this.getGasPriceWithBuffer();
         return this.marketAid.functions['batchRequoteOffers(uint256[],address[2],uint256[],uint256[],uint256[],uint256[])'](
             ids,
             [this.baseTokenAddress, this.quoteTokenAddress],
             askNumerators,
             askDenominators,
             bidNumerators,
-            bidDenominators
+            bidDenominators,
+            { gasPrice }
         );
     }
 
@@ -177,7 +185,8 @@ export class RubiconClassicConnector {
 
     async approveToken(tokenAddress: string, amount: ethers.BigNumber): Promise<ethers.ContractTransaction> {
         const token = new Contract(tokenAddress, ERC20_ABI, this.signer);
-        return token.approve(this.rubiconMarket.address, amount);
+        const gasPrice = await this.getGasPriceWithBuffer();
+        return token.approve(this.rubiconMarket.address, amount, { gasPrice });
     }
 
     async getOutstandingOrders(): Promise<MarketOffer[]> {
@@ -236,4 +245,12 @@ export class RubiconClassicConnector {
 
     // Add other methods for interacting with the MarketAid contract as needed
     // For example: offer, cancel, batchOffer, batchCancel, batchRequote, etc.
+
+    private async getGasPriceWithBuffer(): Promise<ethers.BigNumber> {
+        const gasPrice = await this.provider.getGasPrice();
+        console.log("gas price is ", gasPrice);
+        
+        // Add a 1% buffer to the gas price
+        return gasPrice.mul(101).div(100);
+    }
 }
