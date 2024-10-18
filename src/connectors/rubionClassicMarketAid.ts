@@ -248,7 +248,7 @@ export class RubiconClassicConnector {
 
     private async getGasPriceWithBuffer(): Promise<ethers.BigNumber> {
         const gasPrice = await this.provider.getGasPrice();
-        console.log("gas price is ", gasPrice);
+        // console.log("gas price is ", gasPrice);
         
         // Add a 1% buffer to the gas price
         return gasPrice.mul(101).div(100);
