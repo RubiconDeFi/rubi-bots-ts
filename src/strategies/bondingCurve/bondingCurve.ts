@@ -10,13 +10,8 @@ export class BondingCurveStrategy {
     private rubiconBookTracker: RubiconBookTracker;
     private baseToken: TokenInfo;
     private quoteToken: TokenInfo;
-    private reserveRatio: number;
-    private initialSupply: ethers.BigNumber;
-    private initialPrice: number;
-    private currentSupply: ethers.BigNumber;
     private pollInterval: number;
     private orderLadderSize: number;
-    private spreadFactor: number;
 
     constructor(
         chainID: number,
@@ -24,12 +19,8 @@ export class BondingCurveStrategy {
         userAddress: string,
         baseAddress: string,
         quoteAddress: string,
-        reserveRatio: number,
-        initialSupply: string,
-        initialPrice: number,
         pollInterval: number = 5000,
-        orderLadderSize: number = 5,
-        spreadFactor: number = 0.005
+        orderLadderSize: number = 5
     ) {
         this.rubiconConnector = new RubiconConnector(
             chainID,
@@ -46,31 +37,26 @@ export class BondingCurveStrategy {
         );
         this.baseToken = this.rubiconConnector.base;
         this.quoteToken = this.rubiconConnector.quote;
-        this.reserveRatio = reserveRatio;
-        this.initialSupply = ethers.utils.parseUnits(initialSupply, this.baseToken.decimals);
-        this.initialPrice = initialPrice;
-        this.currentSupply = this.initialSupply;
         this.pollInterval = pollInterval;
         this.orderLadderSize = orderLadderSize;
-        this.spreadFactor = spreadFactor;
     }
 
     async runStrategy() {
-        console.log("Starting Bonding Curve Strategy");
+        console.log("Starting AMM Strategy");
         this.rubiconBookTracker.pollForBookUpdates(this.pollInterval / 2);
         await this.updateOrders(); // Initial order placement
         setInterval(async () => {
             try {
                 await this.updateOrders();
             } catch (error) {
-                console.error("Error executing Bonding Curve Strategy:", error);
+                console.error("Error executing AMM Strategy:", error);
             }
         }, this.pollInterval);
     }
 
     private async updateOrders() {
-        const currentPrice = this.calculateCurrentPrice();
-        const desiredBook = this.buildDesiredBook(currentPrice);
+        const currentPrice = await this.calculateCurrentPrice();
+        const desiredBook = await this.buildDesiredBook(currentPrice);
         
         const userBook = this.rubiconBookTracker.getUserBook();
 
@@ -126,63 +112,104 @@ export class BondingCurveStrategy {
         }
     }
 
-    private calculateCurrentPrice(): number {
-        const reserveBalance = this.calculateReserveBalance();
-        return reserveBalance / (this.currentSupply.toNumber() * this.reserveRatio);
+    private async calculateCurrentPrice(): Promise<number> {
+        const reserveBase = await this.rubiconConnector.onChainAvailableAssetBalance;
+        const reserveQuote = await this.rubiconConnector.onChainAvailableQuoteBalance;
+
+        if (reserveBase === 0 || reserveQuote === 0) {
+            // If either reserve is zero, use a default price or fetch from an oracle
+            return 1; // Replace with appropriate default or oracle price
+        } else {
+            // Use the constant product formula: price = reserveQuote / reserveBase
+            return reserveQuote / reserveBase;
+        }
     }
 
-    private calculateReserveBalance(): number {
-        return this.initialPrice * this.initialSupply.toNumber() * this.reserveRatio;
-    }
-
-    private buildDesiredBook(currentPrice: number): { bids: GenericOrder[], asks: GenericOrder[] } {
+    private async buildDesiredBook(currentPrice: number): Promise<{ bids: GenericOrder[], asks: GenericOrder[] }> {
         const bids: GenericOrder[] = [];
         const asks: GenericOrder[] = [];
 
-        const baseBalance = this.rubiconConnector.onChainAvailableAssetBalance;
-        const quoteBalance = this.rubiconConnector.onChainAvailableQuoteBalance;
+        const reserveBase = await this.rubiconConnector.onChainAvailableAssetBalance;
+        const reserveQuote = await this.rubiconConnector.onChainAvailableQuoteBalance;
 
-        const baseStep = baseBalance / this.orderLadderSize;
-        const quoteStep = quoteBalance / this.orderLadderSize;
+        const maxBaseToUse = reserveBase * 0.95;
+        const maxQuoteToUse = reserveQuote * 0.95;
 
-        // Exponential factor for ask prices
-        const expFactor = Math.pow(1 + this.spreadFactor, this.orderLadderSize);
+        const priceRange = 0.2; // 20% price range for orders
+        const baseIncrement = maxBaseToUse / this.orderLadderSize;
+        const quoteIncrement = maxQuoteToUse / this.orderLadderSize;
+
+        const minBidSize = MIN_ORDER_SIZES[this.quoteToken.symbol];
+        const minAskSize = MIN_ORDER_SIZES[this.baseToken.symbol];
 
         for (let i = 0; i < this.orderLadderSize; i++) {
-            const bidPrice = currentPrice * (1 - this.spreadFactor * (i + 1));
-            // Exponential progression for ask prices
-            const askPrice = currentPrice * Math.pow(expFactor, (i + 1) / this.orderLadderSize);
+            const bidPrice = currentPrice * Math.pow(1 - priceRange, (i + 1) / this.orderLadderSize);
+            const askPrice = currentPrice * Math.pow(1 + priceRange, (i + 1) / this.orderLadderSize);
 
-            const bidSize = quoteStep / bidPrice;
-            // Decreasing size for higher ask prices
-            const askSize = baseStep * (1 - i / this.orderLadderSize);
+            let bidSize = quoteIncrement / bidPrice;
+            let askSize = baseIncrement;
 
-            bids.push({ price: bidPrice, size: bidSize });
-            asks.push({ price: askPrice, size: askSize });
+            // Ensure bid size is above minimum
+            if (bidSize * bidPrice >= minBidSize) {
+                bids.push({ price: bidPrice, size: bidSize });
+            } else if (quoteIncrement >= minBidSize) {
+                // If individual bid is too small, place one larger bid
+                bidSize = minBidSize / bidPrice;
+                bids.push({ price: bidPrice, size: bidSize });
+                break;
+            }
+
+            // Ensure ask size is above minimum
+            if (askSize >= minAskSize) {
+                asks.push({ price: askPrice, size: askSize });
+            } else if (baseIncrement >= minAskSize) {
+                // If individual ask is too small, place one larger ask
+                askSize = minAskSize;
+                asks.push({ price: askPrice, size: askSize });
+                break;
+            }
         }
 
         return { bids, asks };
     }
 
     public async buyTokens(amount: ethers.BigNumber): Promise<void> {
-        const price = this.calculateCurrentPrice();
+        const price = await this.calculateCurrentPrice();
         const cost = amount.mul(ethers.utils.parseUnits(price.toFixed(this.quoteToken.decimals), this.quoteToken.decimals));
         
         // Implement the actual token purchase logic here
         // This would involve interacting with the smart contract
 
-        this.currentSupply = this.currentSupply.add(amount);
         console.log(`Bought ${ethers.utils.formatUnits(amount, this.baseToken.decimals)} tokens for ${ethers.utils.formatUnits(cost, this.quoteToken.decimals)} ${this.quoteToken.symbol}`);
     }
 
     public async sellTokens(amount: ethers.BigNumber): Promise<void> {
-        const price = this.calculateCurrentPrice();
+        const price = await this.calculateCurrentPrice();
         const revenue = amount.mul(ethers.utils.parseUnits(price.toFixed(this.quoteToken.decimals), this.quoteToken.decimals));
         
         // Implement the actual token selling logic here
         // This would involve interacting with the smart contract
 
-        this.currentSupply = this.currentSupply.sub(amount);
         console.log(`Sold ${ethers.utils.formatUnits(amount, this.baseToken.decimals)} tokens for ${ethers.utils.formatUnits(revenue, this.quoteToken.decimals)} ${this.quoteToken.symbol}`);
+    }
+
+    private calculateTradeAmount(
+        price: number,
+        isBuy: boolean,
+        reserveBase: number,
+        reserveQuote: number,
+        k: number
+    ): number {
+        if (isBuy) {
+            // Calculate amount of base token received for a given amount of quote token
+            const quoteIn = 1; // Assume 1 unit of quote token for calculation
+            const baseOut = reserveBase - (k / (reserveQuote + quoteIn));
+            return baseOut / price; // Convert to quote token amount
+        } else {
+            // Calculate amount of quote token received for a given amount of base token
+            const baseIn = 1; // Assume 1 unit of base token for calculation
+            const quoteOut = reserveQuote - (k / (reserveBase + baseIn));
+            return quoteOut * price; // Convert to base token amount
+        }
     }
 }

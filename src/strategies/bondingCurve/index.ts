@@ -1,11 +1,14 @@
 import { ethers } from "ethers";
 import { BondingCurveStrategy } from "./bondingCurve";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 async function startBondingCurveStrategy() {
     const args = process.argv.slice(2);
 
-    if (args.length < 8) {
-        console.error("Please provide all required arguments: chainID, providerUrl, baseAddress, quoteAddress, reserveRatio, initialSupply, initialPrice, fundsHolderAddress");
+    if (args.length < 6) {
+        console.error("Please provide all required arguments: chainID, providerUrl, baseAddress, quoteAddress, userAddress, pollInterval, [orderLadderSize]");
         process.exit(1);
     }
 
@@ -13,11 +16,9 @@ async function startBondingCurveStrategy() {
     const providerUrl = args[1];
     const baseAddress = args[2];
     const quoteAddress = args[3];
-    const reserveRatio = parseFloat(args[4]);
-    const initialSupply = args[5];
-    const initialPrice = parseFloat(args[6]);
-    const fundsHolderAddress = ethers.utils.getAddress(args[7]);
-    const pollInterval = args[8] ? parseInt(args[8], 10) : 5000;
+    const userAddress = args[4];
+    const pollInterval = parseInt(args[5], 10);
+    const orderLadderSize = args[6] ? parseInt(args[6], 10) : 5;
 
     const provider = new ethers.providers.JsonRpcProvider(providerUrl);
 
@@ -30,16 +31,14 @@ async function startBondingCurveStrategy() {
     const strategy = new BondingCurveStrategy(
         chainID,
         userWallet,
-        fundsHolderAddress,
+        userAddress,
         baseAddress,
         quoteAddress,
-        reserveRatio,
-        initialSupply,
-        initialPrice,
-        pollInterval
+        pollInterval,
+        orderLadderSize
     );
 
-    strategy.runStrategy();
+    await strategy.runStrategy();
 }
 
 startBondingCurveStrategy().catch((error) => {
