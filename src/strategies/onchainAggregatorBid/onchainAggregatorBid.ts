@@ -177,8 +177,8 @@ export class OnchainAggregatorBidStrategy {
             console.log(`║ Kraken │ Mid Price:  ${krakenMidPrice.toFixed(8)}`);
             console.log(`║ BID UPPER BOUND   │  ${(krakenMidPrice * (1 + maxDeviation)).toFixed(8)}`);
             console.log(`║ ASK LOWER BOUND   │  ${(krakenMidPrice * (1 - maxDeviation)).toFixed(8)}`);
-            console.log(`║ CURRENT │ BID:  ${currentBid.toFixed(8)} ASK:  ${currentAsk.toFixed(8)}`);
-            console.log(`║ DELTA │ BID:  ${bidDeviation.toFixed(8)} ASK:  ${askDeviation.toFixed(8)}`);
+            console.log(`║ CURRENT │ BID:  ${currentBid?.toFixed(8) || 'N/A'} ASK:  ${currentAsk?.toFixed(8) || 'N/A'}`);
+            console.log(`║ DELTA │ BID:  ${bidDeviation?.toFixed(8) || 'N/A'} ASK:  ${askDeviation?.toFixed(8) || 'N/A'}`);
             console.log('╚════════════════════════════════════════════════════════════╝');
 
 
@@ -194,7 +194,9 @@ export class OnchainAggregatorBidStrategy {
                     await this.updateOrders(newBid, newAsk);
                 }
             } else {
-                console.log('No current positioning. Placing initial orders...');
+                console.log('\n🥳 No current positioning. Placing initial orders...');
+                // Log the price and size of the initial orders
+                console.log('Placing initial orders with these values: ', newBid, newAsk);
                 await this.placeInitialOrders(newBid, newAsk);
             }
         }
@@ -209,8 +211,8 @@ export class OnchainAggregatorBidStrategy {
     }
 
     private async placeInitialOrders(newBid: number, newAsk: number): Promise<void> {
-        const baseBalance = this.rubiconClassicConnector.getBaseTokenBalance();
-        const quoteBalance = this.rubiconClassicConnector.getQuoteTokenBalance();
+        const baseBalance = this.rubiconClassicConnector.getBaseTokenBalance().mul(95).div(100);
+        const quoteBalance = this.rubiconClassicConnector.getQuoteTokenBalance().mul(95).div(100);
 
         const bidBuyAmt = ethers.utils.parseUnits((parseFloat(formatUnits(quoteBalance, this.quoteToken.decimals)) / newBid).toFixed(this.baseToken.decimals), this.baseToken.decimals);
         const bidPayAmt = quoteBalance;
@@ -225,7 +227,7 @@ export class OnchainAggregatorBidStrategy {
         const finalBidPayAmt = bidPayAmt.gte(MIN_QUOTE_SIZE) ? bidPayAmt : ethers.BigNumber.from('0');
         const finalBidBuyAmt = bidPayAmt.gte(MIN_QUOTE_SIZE) ? bidBuyAmt : ethers.BigNumber.from('0');
 
-        console.log("Placing initial orders with these values: ", [finalAskPayAmt], [finalAskBuyAmt], [finalBidPayAmt], [finalBidBuyAmt]);
+        // console.log("Placing initial orders with these values: ", [finalAskPayAmt], [finalAskBuyAmt], [finalBidPayAmt], [finalBidBuyAmt]);
 
         await this.rubiconClassicConnector.batchOffer(
             [finalAskPayAmt],

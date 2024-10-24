@@ -132,8 +132,8 @@ export class RubiconClassicConnector {
         bidNumerators: ethers.BigNumber[],
         bidDenominators: ethers.BigNumber[]
     ): Promise<ethers.ContractTransaction> {
-        console.log("this token pair is ", [this.baseTokenAddress, this.quoteTokenAddress]);
-        console.log("this ask pay amount and base balance is ", formatUnits(askNumerators[0]), this.baseTokenBalance);
+        // console.log("this token pair is ", [this.baseTokenAddress, this.quoteTokenAddress]);
+        // console.log("this ask pay amount and base balance is ", formatUnits(askNumerators[0]), this.baseTokenBalance);
         
         const gasPrice = await this.getGasPriceWithBuffer();
         
