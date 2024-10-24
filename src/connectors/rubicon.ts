@@ -197,7 +197,7 @@ export class RubiconConnector {
             console.log("Order placed:", response.data);
             return response.data;
         } catch (error: any) {
-            console.error(`Error placing isbID ${isBid} size ${_size} price ${price} order:`, error);
+            console.error(`Error placing isbID ${isBid} size ${_size} price ${price} order:`, error.response ? error.response.data : error.message);
             throw error;
         }
     }

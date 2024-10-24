@@ -108,12 +108,12 @@ export class CexMarketMaking {
                 }
                 gate = true;
                 try {
-                    
+
                     await this.updateRubiconOrders(desiredBook);
                 } catch (error) {
                     console.log("Error updating orders", error);
                     gate = false;
-                    
+
                 }
                 gate = false;
 
@@ -164,7 +164,7 @@ export class CexMarketMaking {
             const currentBid = currentBids[i];
 
             if (!desiredBid) {
-                return
+                continue
             }
 
             if (!currentBid || Math.abs(currentBid.price - desiredBid.price) > 0.00001 || currentBid.size !== desiredBid.size) {
@@ -172,7 +172,7 @@ export class CexMarketMaking {
                 // Min order size check
                 if (MIN_ORDER_SIZES[this.rubiconConnector.quote.symbol] > desiredBid.size * desiredBid.price) {
                     console.log(`Minimum order size for ${this.rubiconConnector.quote.symbol} is ${MIN_ORDER_SIZES[this.rubiconConnector.quote.symbol]} skipping order`);
-                    return;
+                    continue;
                 }
 
                 if (currentBid) {
@@ -194,12 +194,12 @@ export class CexMarketMaking {
             const desiredAsk = desiredBook.asks[i];
             const currentAsk = currentAsks[i];
             if (!desiredAsk) {
-                return
+                continue
             }
             // Min order size check
             if (MIN_ORDER_SIZES[this.rubiconConnector.base.symbol] > desiredAsk.size) {
                 console.log(`Minimum order size for ${this.rubiconConnector.base.symbol} is ${MIN_ORDER_SIZES[this.rubiconConnector.base.symbol]} skipping order`);
-                return;
+                continue;
             }
             if (!currentAsk || Math.abs(currentAsk.price - desiredAsk.price) > 0.00001 || currentAsk.size !== desiredAsk.size) {
                 console.log(`Updating ask at price: ${desiredAsk.price}, size: ${desiredAsk.size}`);
