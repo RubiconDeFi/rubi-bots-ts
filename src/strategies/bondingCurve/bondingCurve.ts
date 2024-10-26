@@ -113,28 +113,40 @@ export class BondingCurveStrategy {
         
         // Wait for token initialization
         while (!this.baseToken || !this.quoteToken || !this.rubiconConnector || !this.rubiconBookTracker) {
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 4000));
         }
 
         this.rubiconBookTracker.pollForBookUpdates(this.pollInterval / 2);
         
         let gate = false;
+        let gateHitCount = 0;
         setInterval(async () => {
             try {
                 if (gate) {
                     console.log("Gate is up, skipping order update");
+                    gateHitCount++;
+                    if (gateHitCount >= 5) {
+                        console.log("Gate hit 10 times, clearing gate");
+                        gate = false;
+                        gateHitCount = 0;
+                    }
                     return;
                 }
                 gate = true;
+                gateHitCount = 0;
 
+                console.log("Calculating current price");
                 const currentPrice = await this.calculateCurrentPrice();
+                console.log("Building desired book");
                 const desiredBook = await this.buildDesiredBook(currentPrice);
+                console.log("Updating Rubicon orders");
                 await this.updateRubiconOrders(desiredBook);
 
                 gate = false;
             } catch (error) {
                 console.error("Error executing Bonding Curve Strategy:", error);
                 gate = false;
+                gateHitCount = 0;
             }
         }, this.pollInterval);
     }
@@ -230,7 +242,7 @@ export class BondingCurveStrategy {
                     updatePromises.push(this.rubiconConnector.editOrder(currentOrder.hash, desiredOrder.size, desiredOrder.price, isBid));
                 }
             } else if (desiredOrder) {
-                console.log(`Placing new ${isBid ? 'bid' : 'ask'} at price: ${desiredOrder.price}, size: ${desiredOrder.size}`);
+                console.log(`Placing new ${isBid ? 'bid' : 'ask'} at price: ${desiredOrder.price}, size: ${desiredOrder.size} token ${isBid ? this.quoteToken.symbol : this.baseToken.symbol} `);
                 updatePromises.push(this.rubiconConnector.placeOrder(desiredOrder.size, desiredOrder.price, isBid));
             } else if (currentOrder) {
                 console.log(`Cancelling ${isBid ? 'bid' : 'ask'} at price: ${currentOrder.price}, size: ${currentOrder.size}`);

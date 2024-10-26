@@ -192,7 +192,7 @@ export class RubiconConnector {
                 chainId: this.chainID,
             };
 
-            // console.log("Sending order to Rubicon...");
+            console.log("Sending order to Rubicon...");
             const response = await axios.post(`${this.GLADIUS_URL}/dutch-auction/order`, payload);
             console.log("Order placed:", response.data);
             return response.data;

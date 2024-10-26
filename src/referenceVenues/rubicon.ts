@@ -27,6 +27,9 @@ export class RubiconBookTracker implements MarketVenue {
         this.quoteAddress = quoteAddress;
         this.book = { asks: [], bids: [] }; // Initialize empty book
         this.userBook = { asks: [], bids: [] }; // Initialize empty user book
+
+        // Log listening for the book on this user and this pair
+        console.log(`Listening for the book on ${userAddress} for ${baseAddress}/${quoteAddress}`);
     }
 
     // Fetch the entire order book for a specific pair and depth (optional)
