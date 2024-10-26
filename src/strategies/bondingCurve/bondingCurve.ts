@@ -4,14 +4,21 @@ import { RubiconBookTracker } from "../../referenceVenues/rubicon";
 import { MIN_ORDER_SIZES } from "../../config/rubicon";
 import { TokenInfo } from "@uniswap/token-lists";
 import { GenericOrder, GenericOrderWithData } from "../../types/rubicon";
+import { getTokenInfoFromAddress } from "../../utils/rubicon";
+import { tokenList } from "../../config/tokens";
 
 export class BondingCurveStrategy {
-    private rubiconConnector: RubiconConnector;
-    private rubiconBookTracker: RubiconBookTracker;
-    private baseToken: TokenInfo;
-    private quoteToken: TokenInfo;
+    private rubiconConnector!: RubiconConnector;
+    private rubiconBookTracker!: RubiconBookTracker;
+    private baseToken!: TokenInfo;
+    private quoteToken!: TokenInfo;
     private pollInterval: number;
     private orderLadderSize: number;
+    private chainID: number;
+    private userAddress: string;
+    private baseAddress: string;
+    private quoteAddress: string;
+    private provider: ethers.providers.Provider;
 
     constructor(
         chainID: number,
@@ -22,27 +29,93 @@ export class BondingCurveStrategy {
         pollInterval: number = 5000,
         orderLadderSize: number = 5
     ) {
-        this.rubiconConnector = new RubiconConnector(
-            chainID,
-            walletWithProvider,
-            userAddress,
-            baseAddress,
-            quoteAddress
-        );
-        this.rubiconBookTracker = new RubiconBookTracker(
-            chainID,
-            userAddress,
-            baseAddress,
-            quoteAddress
-        );
-        this.baseToken = this.rubiconConnector.base;
-        this.quoteToken = this.rubiconConnector.quote;
+        this.chainID = chainID;
+        this.userAddress = userAddress;
+        this.baseAddress = baseAddress;
+        this.quoteAddress = quoteAddress;
         this.pollInterval = pollInterval;
         this.orderLadderSize = orderLadderSize;
+        this.provider = walletWithProvider.provider!;
+
+        // Check and fetch token information if necessary
+        this.initializeTokens().then(() => {
+            this.rubiconConnector = new RubiconConnector(
+                chainID,
+                walletWithProvider,
+                userAddress,
+                baseAddress,
+                quoteAddress
+            );
+            this.rubiconBookTracker = new RubiconBookTracker(
+                chainID,
+                userAddress,
+                baseAddress,
+                quoteAddress
+            );
+        });
+    }
+
+    private async initializeTokens() {
+        try {
+            this.baseToken = getTokenInfoFromAddress(this.baseAddress, this.chainID);
+            this.quoteToken = getTokenInfoFromAddress(this.quoteAddress, this.chainID);
+        } catch (error) {
+            console.log("Token information not found in the list. Fetching from chain...");
+            await this.fetchAndSaveTokenInfo();
+        }
+    }
+
+    private async fetchAndSaveTokenInfo() {
+        const ERC20ABI = [
+            "function name() view returns (string)",
+            "function symbol() view returns (string)",
+            "function decimals() view returns (uint8)"
+        ];
+
+        const baseContract = new ethers.Contract(this.baseAddress, ERC20ABI, this.provider);
+        const quoteContract = new ethers.Contract(this.quoteAddress, ERC20ABI, this.provider);
+
+        const [baseName, baseSymbol, baseDecimals, quoteName, quoteSymbol, quoteDecimals] = await Promise.all([
+            baseContract.name(),
+            baseContract.symbol(),
+            baseContract.decimals(),
+            quoteContract.name(),
+            quoteContract.symbol(),
+            quoteContract.decimals()
+        ]);
+
+        this.baseToken = {
+            name: baseName,
+            symbol: baseSymbol,
+            chainId: this.chainID,
+            address: this.baseAddress,
+            decimals: baseDecimals
+        };
+
+        this.quoteToken = {
+            name: quoteName,
+            symbol: quoteSymbol,
+            chainId: this.chainID,
+            address: this.quoteAddress,
+            decimals: quoteDecimals
+        };
+
+        console.log("adding these tokens dynamically");
+        console.log(this.baseToken);
+        console.log(this.quoteToken);
+
+        // Add these tokens to the in-memory token list
+        tokenList.tokens.push(this.baseToken, this.quoteToken);
     }
 
     async runStrategy() {
         console.log("Starting Bonding Curve Strategy");
+        
+        // Wait for token initialization
+        while (!this.baseToken || !this.quoteToken || !this.rubiconConnector || !this.rubiconBookTracker) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+
         this.rubiconBookTracker.pollForBookUpdates(this.pollInterval / 2);
         
         let gate = false;
