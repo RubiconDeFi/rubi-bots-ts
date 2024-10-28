@@ -152,11 +152,11 @@ export class BondingCurveStrategy {
     }
 
     private async calculateCurrentPrice(): Promise<number> {
-        const reserveBase = await this.rubiconConnector.onChainAvailableAssetBalance;
-        const reserveQuote = await this.rubiconConnector.onChainAvailableQuoteBalance;
+        const reserveBase = this.rubiconConnector.onChainAvailableAssetBalance;
+        const reserveQuote = this.rubiconConnector.onChainAvailableQuoteBalance;
 
         if (reserveBase === 0 || reserveQuote === 0) {
-            return 1; // Replace with appropriate default or oracle price
+            return 0.000000001; //very arbitrary price!
         } else {
             return reserveQuote / reserveBase;
         }
@@ -166,25 +166,33 @@ export class BondingCurveStrategy {
         const bids: GenericOrder[] = [];
         const asks: GenericOrder[] = [];
 
-        const reserveBase = await this.rubiconConnector.onChainAvailableAssetBalance;
-        const reserveQuote = await this.rubiconConnector.onChainAvailableQuoteBalance;
+        const reserveBase = this.rubiconConnector.onChainAvailableAssetBalance;
+        const reserveQuote = this.rubiconConnector.onChainAvailableQuoteBalance;
 
-        const maxBaseToUse = reserveBase * 0.95;
+        const maxBaseToUse = reserveBase * 0.95;  // Using 95% of available balance
         const maxQuoteToUse = reserveQuote * 0.95;
 
-        const priceRange = 0.2; // 20% price range for orders
-        const baseIncrement = maxBaseToUse / this.orderLadderSize;
-        const quoteIncrement = maxQuoteToUse / this.orderLadderSize;
+        // TODO: These should be configuration variables
+        /// @dev Key drivers for curve aggressiveness and positioning, w/ the other being ladder size
+        const priceRange = 6; // Increased for more aggressive price scaling
+        const sizeRange = 12;  // Size will scale up to 3x the base size
+
+        const baseSize = maxBaseToUse / (this.orderLadderSize * 2); // Smaller base size since we're scaling up
+        const quoteSize = maxQuoteToUse / (this.orderLadderSize * 2);
 
         const minBidSize = MIN_ORDER_SIZES[this.quoteToken.symbol];
         const minAskSize = MIN_ORDER_SIZES[this.baseToken.symbol];
 
         for (let i = 0; i < this.orderLadderSize; i++) {
+            // Exponential scaling for both price and size
             const bidPrice = currentPrice * Math.pow(1 - priceRange, (i + 1) / this.orderLadderSize);
             const askPrice = currentPrice * Math.pow(1 + priceRange, (i + 1) / this.orderLadderSize);
 
-            let bidSize = quoteIncrement / bidPrice;
-            let askSize = baseIncrement;
+            // Size increases exponentially as price moves further from mid
+            const sizeFactor = Math.pow(sizeRange, i / this.orderLadderSize);
+            
+            let bidSize = (quoteSize * sizeFactor) / bidPrice;
+            let askSize = baseSize * sizeFactor;
 
             if (bidSize * bidPrice >= minBidSize) {
                 bids.push({ price: bidPrice, size: bidSize });
