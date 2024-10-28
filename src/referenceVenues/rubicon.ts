@@ -1,6 +1,6 @@
 import { ethers, BigNumber } from 'ethers';
 import axios from 'axios';
-import { formatUnits } from 'ethers/lib/utils';
+import { formatUnits, getAddress } from 'ethers/lib/utils';
 import { DutchOrder } from '@rubicondefi/gladius-sdk'; // Assuming DutchOrder is imported from Gladius SDK
 import { GenericOrderWithData } from '../types/rubicon'; // Import your interface
 import { parseOrders } from '../utils/rubicon';
@@ -34,12 +34,18 @@ export class RubiconBookTracker implements MarketVenue {
 
     // Fetch the entire order book for a specific pair and depth (optional)
     async fetchOrderBook(depth: number = 50): Promise<{ asks: GenericOrderWithData[], bids: GenericOrderWithData[] }> {
-        const asksUrl = `${GLADIUS}/dutch-auction/orders?chainId=${this.chainID}&orderStatus=open&buyToken=${this.quoteAddress}&sellToken=${this.baseAddress}&limit=${depth}&asc=true&sortKey=price`;
-        const bidsUrl = `${GLADIUS}/dutch-auction/orders?chainId=${this.chainID}&orderStatus=open&buyToken=${this.baseAddress}&sellToken=${this.quoteAddress}&limit=${depth}&desc=true&sortKey=price`;
+        const asksUrl = `${GLADIUS}/dutch-auction/orders?chainId=${this.chainID}&orderStatus=open&buyToken=${getAddress(this.quoteAddress)}&sellToken=${getAddress(this.baseAddress)}&limit=${depth}&asc=true&sortKey=price`;
+        const bidsUrl = `${GLADIUS}/dutch-auction/orders?chainId=${this.chainID}&orderStatus=open&buyToken=${getAddress(this.baseAddress)}&sellToken=${getAddress(this.quoteAddress)}&limit=${depth}&desc=true&sortKey=price`;
+
+        // console.log("Fetching order book for", asksUrl);
+        // console.log("Fetching order book for", bidsUrl);
 
         try {
             const [asks, bids] = await Promise.all([this.fetchAllOrders(asksUrl), this.fetchAllOrders(bidsUrl)]);
 
+            // console.log("Asks:", asks);
+            // console.log("Bids:", bids);
+            
             const parsedAsks = parseOrders(this.chainID, asks, this.baseAddress, this.quoteAddress, true);
             const parsedBids = parseOrders(this.chainID, bids, this.baseAddress, this.quoteAddress, false);
 

@@ -107,7 +107,7 @@ export class RubiconConnector {
         const nm = new NonceManager(this.provider as ethers.providers.BaseProvider, this.chainID, this.permit2address);
         const out: number[] = [];
         for (let index = 0; index < length; index++) {
-            const nonce = await nm.useNonce(this.userAddress);
+            const nonce = await nm.useNonce(this.signer.address);
             out.push(nonce.toNumber());
         }
         return out;
@@ -194,7 +194,7 @@ export class RubiconConnector {
 
             console.log("Sending order to Rubicon...");
             const response = await axios.post(`${this.GLADIUS_URL}/dutch-auction/order`, payload);
-            console.log("Order placed:", response.data);
+            console.log("Order placed:", response.data, "this nonce:", orderNonce);
             return response.data;
         } catch (error: any) {
             console.error(`Error placing isbID ${isBid} size ${_size} price ${price} order:`, error.response ? error.response.data : error.message);
