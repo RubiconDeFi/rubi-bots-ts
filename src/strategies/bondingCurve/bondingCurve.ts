@@ -139,6 +139,7 @@ export class BondingCurveStrategy {
                 const currentPrice = await this.calculateCurrentPrice();
                 console.log("Building desired book");
                 const desiredBook = await this.buildDesiredBook(currentPrice);
+                // console.log("Desired book: ", desiredBook);
                 console.log("Updating Rubicon orders");
                 await this.updateRubiconOrders(desiredBook);
 
@@ -169,6 +170,9 @@ export class BondingCurveStrategy {
         const reserveBase = this.rubiconConnector.onChainAvailableAssetBalance;
         const reserveQuote = this.rubiconConnector.onChainAvailableQuoteBalance;
 
+        // console.log("Reserve base: ", reserveBase);
+        // console.log("Reserve quote: ", reserveQuote);
+
         const maxBaseToUse = reserveBase * 0.95;  // Using 95% of available balance
         const maxQuoteToUse = reserveQuote * 0.95;
 
@@ -180,14 +184,16 @@ export class BondingCurveStrategy {
         const baseSize = maxBaseToUse / (this.orderLadderSize * 2); // Smaller base size since we're scaling up
         const quoteSize = maxQuoteToUse / (this.orderLadderSize * 2);
 
-        const minBidSize = MIN_ORDER_SIZES[this.quoteToken.symbol];
-        const minAskSize = MIN_ORDER_SIZES[this.baseToken.symbol];
+        const minBidSize = MIN_ORDER_SIZES[this.quoteToken.symbol] ? MIN_ORDER_SIZES[this.quoteToken.symbol] : 0;
+        const minAskSize = MIN_ORDER_SIZES[this.baseToken.symbol] ? MIN_ORDER_SIZES[this.baseToken.symbol] : 0;
 
         for (let i = 0; i < this.orderLadderSize; i++) {
             // Exponential scaling for both price and size
             const bidPrice = currentPrice * Math.pow(1 - priceRange, (i + 1) / this.orderLadderSize);
             const askPrice = currentPrice * Math.pow(1 + priceRange, (i + 1) / this.orderLadderSize);
 
+            // console.log("Bid price: ", bidPrice);
+            // console.log("Ask price: ", askPrice);
             // Size increases exponentially as price moves further from mid
             const sizeFactor = Math.pow(sizeRange, i / this.orderLadderSize);
             
@@ -196,10 +202,14 @@ export class BondingCurveStrategy {
 
             if (bidSize * bidPrice >= minBidSize) {
                 bids.push({ price: bidPrice, size: bidSize });
+            } else {
+                console.log("Bid size too small, skipping");
             }
 
             if (askSize >= minAskSize) {
                 asks.push({ price: askPrice, size: askSize });
+            } else {
+                console.log("Ask size too small, skipping");
             }
         }
 
