@@ -11,7 +11,7 @@ async function startOnchainAggregatorBidStrategy() {
 
     if (args.length < 7) {
         console.error("Please provide all required arguments: chainID, providerUrl, baseAddress, quoteAddress, baseSymbol, quoteSymbol, marketAidAddress");
-        console.error("Optional argument: pollInterval");
+        console.error("Optional arguments: pollInterval, volatilityThreshold, maxDeviation");
         process.exit(1);
     }
 
@@ -24,6 +24,8 @@ async function startOnchainAggregatorBidStrategy() {
     const quoteSymbol = args[5];
     const marketAidAddress = args[6];
     const pollInterval = args[7] ? parseInt(args[7], 10) : 60000; // Default to 1 minute if not specified
+    const volatilityThreshold = args[8] ? parseFloat(args[8]) : 0.02; // Default to 2%
+    const maxDeviation = args[9] ? parseFloat(args[9]) : 0.01; // Default to 1%
 
     // Validate inputs
     if (isNaN(chainID) || !ethers.utils.isAddress(baseAddress) || !ethers.utils.isAddress(quoteAddress) || !baseSymbol || !quoteSymbol) {
@@ -32,7 +34,16 @@ async function startOnchainAggregatorBidStrategy() {
 
     // Log configuration
     console.log("Starting Onchain Aggregator Bid Strategy with the following configuration:", {
-        chainID, providerUrl, baseAddress, quoteAddress, baseSymbol, quoteSymbol, marketAidAddress, pollInterval
+        chainID,
+        providerUrl,
+        baseAddress,
+        quoteAddress,
+        baseSymbol,
+        quoteSymbol,
+        marketAidAddress,
+        pollInterval,
+        volatilityThreshold,
+        maxDeviation
     });
 
     // Set up provider and wallet
@@ -56,7 +67,11 @@ async function startOnchainAggregatorBidStrategy() {
         provider,
         userWallet,
         RUBICON_MARKET_ADDRESS_BY_CHAIN_ID[chainID],
-        marketAidAddress
+        marketAidAddress,
+        {
+            volatilityThreshold,
+            maxDeviation
+        }
     );
 
     // Function to execute the strategy

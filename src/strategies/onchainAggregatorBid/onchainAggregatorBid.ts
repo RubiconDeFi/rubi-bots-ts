@@ -6,6 +6,11 @@ import { RubiconClassicConnector } from '../../connectors/rubionClassicMarketAid
 import { formatUnits } from 'ethers/lib/utils';
 import { MIN_ORDER_SIZES } from '../../config/rubicon';
 
+interface StrategyConfig {
+    volatilityThreshold?: number;
+    maxDeviation?: number;
+}
+
 export class OnchainAggregatorBidStrategy {
     private odosReferenceVenue: ODOSReferenceVenue;
     private baseToken: TokenInfo;
@@ -15,6 +20,8 @@ export class OnchainAggregatorBidStrategy {
     private rubiconClassicConnector: RubiconClassicConnector;
     private startupFinished: boolean = false;
     private userWallet: ethers.Wallet;
+    private readonly volatilityThreshold: number;
+    private readonly maxDeviation: number;
 
     constructor(
         baseSymbol: string,
@@ -25,7 +32,8 @@ export class OnchainAggregatorBidStrategy {
         provider: ethers.providers.Provider,
         userWallet: ethers.Wallet,
         marketAddress: string,
-        marketAidAddress: string
+        marketAidAddress: string,
+        config: StrategyConfig = {}
     ) {
         this.userWallet = userWallet;
         this.baseToken = baseToken;
@@ -50,6 +58,8 @@ export class OnchainAggregatorBidStrategy {
             baseToken.address,
             quoteToken.address
         )
+        this.volatilityThreshold = config.volatilityThreshold ?? 0.002;
+        this.maxDeviation = config.maxDeviation ?? 0.0005;
         this.breifStartupWait();
     }
 
@@ -107,8 +117,9 @@ export class OnchainAggregatorBidStrategy {
         }
 
         // 4. Update logic
-        const volatilityThreshold = 0.02; // 2% threshold, adjust as needed
-        const isHighVolatility = Math.abs(krakenBestAsk - krakenBestBid) / krakenBestBid > volatilityThreshold;
+        // TODO: Should solve for this value in the future
+        // TODO: should be a programmable value
+        const isHighVolatility = Math.abs(krakenBestAsk - krakenBestBid) / krakenBestBid > this.volatilityThreshold;
 
         // TODO: SOLVE FOR THIS VALUE IN THE FUTURE - In theory, volatility should be priced into the spreads
         if (isHighVolatility) {
@@ -154,14 +165,13 @@ export class OnchainAggregatorBidStrategy {
             console.log(`║ Kraken │ ${Number(krakenData.bids[0].price).toFixed(8).padStart(18)} │ ${Number(krakenData.asks[0].price).toFixed(8).padStart(18)} │ ${(Number(krakenData.asks[0].price) - Number(krakenData.bids[0].price)).toFixed(8).padStart(7)} ║`);
             console.log(`║ ODOS   │ ${odosData.bestBid.toFixed(8).padStart(18)} │ ${odosData.bestAsk.toFixed(8).padStart(18)} │ ${(odosData.bestAsk - odosData.bestBid).toFixed(8).padStart(7)} ║`);
             console.log(`║ SELECT │ ${newBid.toFixed(8).padStart(18)} │ ${newAsk.toFixed(8).padStart(18)} │ ${(newAsk - newBid).toFixed(8).padStart(7)} ║`);
-            console.log('╚═══════════════════════════════════════════��════════════════╝');
+            console.log('╚════════════════════════════════════════════════════════════╝');
 
 
             // 4.2 If it is a low volatility period, add or update orders to book that outbid ODOS spread
             // 4.3 Check if the new positioning is too offsides based on Kraken data
             // TODO: should also be based on order book not mid price
             // TODO: should be a programmable value
-            const maxDeviation = 0.01; // 1% max deviation from Kraken mid price
             console.log('kraken mid price:', krakenMidPrice);
             console.log('new bid:', newBid);
             console.log('new ask:', newAsk);
@@ -196,15 +206,15 @@ export class OnchainAggregatorBidStrategy {
             console.log('║                   Market Data Comparison                  ║');
             console.log('╠════════════════════════════════════════════════════════════╣');
             console.log(`║ Kraken │ Mid Price:  ${krakenMidPrice.toFixed(8)}`);
-            console.log(`║ BID UPPER BOUND   │  ${(krakenMidPrice * (1 + maxDeviation)).toFixed(8)}`);
-            console.log(`║ ASK LOWER BOUND   │  ${(krakenMidPrice * (1 - maxDeviation)).toFixed(8)}`);
+            console.log(`║ BID UPPER BOUND   │  ${(krakenMidPrice * (1 + this.maxDeviation)).toFixed(8)}`);
+            console.log(`║ ASK LOWER BOUND   │  ${(krakenMidPrice * (1 - this.maxDeviation)).toFixed(8)}`);
             console.log(`║ CURRENT │ BID:  ${currentBid?.toFixed(8) || 'N/A'} ASK:  ${currentAsk?.toFixed(8) || 'N/A'}`);
             console.log(`║ DELTA │ BID:  ${bidDeviation?.toFixed(8) || 'N/A'} ASK:  ${askDeviation?.toFixed(8) || 'N/A'}`);
             console.log('╚════════════════════════════════════════════════════════════╝');
 
             // Only check deviations for prices that exist
-            const bidNeedsUpdate = currentBid && bidDeviation > maxDeviation;
-            const askNeedsUpdate = currentAsk && askDeviation > maxDeviation;
+            const bidNeedsUpdate = currentBid && bidDeviation > this.maxDeviation;
+            const askNeedsUpdate = currentAsk && askDeviation > this.maxDeviation;
 
             if (bidNeedsUpdate || askNeedsUpdate) {
                 console.log('\n📐 Current positioning exceeds acceptable range. Requoting...');
