@@ -75,19 +75,19 @@ export class RubiconClassicConnector {
 
     private async updateOutstandingOrders() {
         try {
-            const orders = await this.marketAid.getStrategistBookWithPriceData(
+            const orders: MarketOffer[] = await this.marketAid.getStrategistBookWithPriceData(
                 this.baseTokenAddress,
                 this.quoteTokenAddress,
                 this.signer.address
             );
             this.outstandingOffers = orders;
 
-            const uids = await this.marketAid.getOutstandingStrategistTrades(
-                this.baseTokenAddress,
-                this.quoteTokenAddress,
-                this.signer.address
-            );
-            this.outstandingUIDs = uids;
+            // const uids = await this.marketAid.getOutstandingStrategistTrades(
+            //     this.baseTokenAddress,
+            //     this.quoteTokenAddress,
+            //     this.signer.address
+            // );
+            this.outstandingUIDs = orders.map(offer => offer.relevantStratTradeId);
 
             // console.log("Outstanding offers:", this.outstandingOffers);
             // console.log("Outstanding UIDs:", this.outstandingUIDs);

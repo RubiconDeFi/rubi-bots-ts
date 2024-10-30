@@ -1,6 +1,6 @@
 import { TokenInfo } from '@uniswap/token-lists';
 import { ODOSReferenceVenue } from '../../referenceVenues/odos';
-import { ethers } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 import { KrakenReferenceVenue } from '../../referenceVenues/kraken';
 import { RubiconClassicConnector } from '../../connectors/rubionClassicMarketAid';
 import { formatUnits } from 'ethers/lib/utils';
@@ -87,6 +87,25 @@ export class OnchainAggregatorBidStrategy {
         const onchainPositioning = this.rubiconClassicConnector.getOutstandingOffers();
         // console.log('Onchain Positioning:', onchainPositioning);
 
+
+        // Find positions that are all zeros and their corresponding UIDs
+        const zeroPositionsWithUIDs = onchainPositioning.filter(offer => 
+            offer.bidPay.eq(BigNumber.from('0')) && 
+            offer.bidBuy.eq(BigNumber.from('0')) && 
+            offer.askPay.eq(BigNumber.from('0')) && 
+            offer.askBuy.eq(BigNumber.from('0'))
+        );
+
+        // If we found any zero positions, clean them up
+        if (zeroPositionsWithUIDs.length > 0) {
+            console.log(`Found ${zeroPositionsWithUIDs.length} zeroed positions, cleaning up...`);
+            const zeroUIDs = zeroPositionsWithUIDs.map(offer => offer.relevantStratTradeId);
+            if (zeroUIDs.length > 0) {
+                await this.rubiconClassicConnector.batchCancel(zeroUIDs);
+            }
+            return; // Exit execution to allow the next cycle to proceed with clean state
+        }
+
         // 4. Update logic
         // TODO: SOLVE FOR THIS VALUE
         const volatilityThreshold = 0.02; // 2% threshold, adjust as needed
@@ -149,8 +168,8 @@ export class OnchainAggregatorBidStrategy {
             let currentBid: number | undefined;
             let currentAsk: number | undefined;
 
-            console.log('onchain positioning:', onchainPositioning.map(offer => ({ bidPay: formatUnits(offer.bidPay, this.quoteToken.decimals), bidBuy: formatUnits(offer.bidBuy, this.baseToken.decimals), askPay: formatUnits(offer.askPay, this.baseToken.decimals), askBuy: formatUnits(offer.askBuy, this.quoteToken.decimals) })));
-            
+            console.log('onchain positioning:', onchainPositioning.map(offer => ({ bidPay: formatUnits(offer.bidPay, this.quoteToken.decimals), bidBuy: formatUnits(offer.bidBuy, this.baseToken.decimals), askPay: formatUnits(offer.askPay, this.baseToken.decimals), askBuy: formatUnits(offer.askBuy, this.quoteToken.decimals), UID: offer.relevantStratTradeId.toString() })));
+
             if (onchainPositioning.length > 0) {
                 const bidOffer = onchainPositioning.find(offer => offer.bidPay.gt(0) && offer.bidBuy.gt(0));
                 const askOffer = onchainPositioning.find(offer => offer.askPay.gt(0) && offer.askBuy.gt(0));
@@ -182,7 +201,7 @@ export class OnchainAggregatorBidStrategy {
             console.log('╚════════════════════════════════════════════════════════════╝');
 
 
-            if (currentBid && currentAsk) {
+            if (currentBid || currentAsk) {
 
                 if (bidDeviation <= maxDeviation && askDeviation <= maxDeviation) {
                     console.log('Current positioning within acceptable range. No action needed.');
