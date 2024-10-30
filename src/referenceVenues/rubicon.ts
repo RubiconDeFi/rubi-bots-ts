@@ -2,7 +2,7 @@ import { ethers, BigNumber } from 'ethers';
 import axios from 'axios';
 import { formatUnits, getAddress } from 'ethers/lib/utils';
 import { DutchOrder } from '@rubicondefi/gladius-sdk'; // Assuming DutchOrder is imported from Gladius SDK
-import { GenericOrderWithData } from '../types/rubicon'; // Import your interface
+import { GenericOrderWithData, SimpleBook } from '../types/rubicon'; // Import your interface
 import { parseOrders } from '../utils/rubicon';
 import { GLADIUS } from '../config/rubicon';
 import { MarketVenue } from '../types/MarketVenue';
@@ -150,5 +150,21 @@ export class RubiconBookTracker implements MarketVenue {
                 console.error("Error polling Rubicon book:", error);
             }
         }, interval);
+    }
+
+    async getBestBidAndAsk(): Promise<SimpleBook | null> {
+        await this.fetchOrderBook();
+
+        const bestBid = this.book.bids[0];
+        const bestAsk = this.book.asks[0];
+
+        if (!bestBid || !bestAsk) {
+            return null;
+        }
+
+        return {
+            bids: [bestBid],
+            asks: [bestAsk]
+        }
     }
 }

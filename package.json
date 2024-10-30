@@ -24,6 +24,7 @@
   "scripts": {
     "run:cexMarketMaking": "ts-node src/strategies/cexMarketMaking/index.ts",
     "run:ammOutbid": "ts-node src/strategies/ammOutbid/index.ts",
-    "run:bondingCurve": "ts-node src/strategies/bondingCurve/index.ts"
+    "run:bondingCurve": "ts-node src/strategies/bondingCurve/index.ts",
+    "run:onchainAggregatorBid": "ts-node src/strategies/onchainAggregatorBid/index.ts"
   }
 }
