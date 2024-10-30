@@ -1,11 +1,11 @@
 import { ethers } from "ethers";
-import { RubiconConnector } from "../../connectors/rubicon";
 import { RubiconBookTracker } from "../../referenceVenues/rubicon";
 import { MIN_ORDER_SIZES } from "../../config/rubicon";
 import { TokenInfo } from "@uniswap/token-lists";
 import { GenericOrder, GenericOrderWithData } from "../../types/rubicon";
 import { getTokenInfoFromAddress } from "../../utils/rubicon";
 import { tokenList } from "../../config/tokens";
+import { RubiconConnector } from "../../connectors/rubiconGladius";
 
 export class BondingCurveStrategy {
     private rubiconConnector!: RubiconConnector;
