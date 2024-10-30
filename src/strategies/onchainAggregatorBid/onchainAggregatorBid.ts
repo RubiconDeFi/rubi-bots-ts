@@ -216,11 +216,19 @@ export class OnchainAggregatorBidStrategy {
             console.log('╔════════════════════════════════════════════════════════════╗');
             console.log('║                   Market Data Comparison                  ║');
             console.log('╠════════════════════════════════════════════════════════════╣');
-            console.log(`║ Kraken │ Bid: ${krakenBestBid.toFixed(8)} Ask: ${krakenBestAsk.toFixed(8)}`);
-            console.log(`║ BID UPPER BOUND   │  ${(krakenBestBid * (1 + this.maxDeviation)).toFixed(8)}`);
-            console.log(`║ ASK LOWER BOUND   │  ${(krakenBestAsk * (1 - this.maxDeviation)).toFixed(8)}`);
-            console.log(`║ CURRENT │ BID:  ${currentBid?.toFixed(8) || 'N/A'} ASK:  ${currentAsk?.toFixed(8) || 'N/A'}`);
-            console.log(`║ DELTA │ BID:  ${bidDeviation?.toFixed(8) || 'N/A'} ASK:  ${askDeviation?.toFixed(8) || 'N/A'}`);
+            console.log(`║ Kraken Price    │ Bid: ${krakenBestBid.toFixed(8)} │ Ask: ${krakenBestAsk.toFixed(8)} ║`);
+            console.log('╟────────────────────────────────────────────────────────────╢');
+            console.log(`║ Volatility      │ Threshold: ${(this.volatilityThreshold * 100).toFixed(3)}%              ║`);
+            console.log(`║ Max Deviation   │ Threshold: ${(this.maxDeviation * 100).toFixed(3)}%              ║`);
+            console.log('╟────────────────────────────────────────────────────────────╢');
+            console.log(`║ Price Bounds    │ Bid (Upper Bound): ${(krakenBestBid * (1 + this.maxDeviation)).toFixed(8)}    ║`);
+            console.log(`║                 │ Ask (Lower Bound): ${(krakenBestAsk * (1 - this.maxDeviation)).toFixed(8)}    ║`);
+            console.log('╟────────────────────────────────────────────────────────────╢');
+            console.log(`║ Current Prices  │ Bid: ${currentBid?.toFixed(8) || 'N/A'}              ║`);
+            console.log(`║                 │ Ask: ${currentAsk?.toFixed(8) || 'N/A'}              ║`);
+            console.log('╟────────────────────────────────────────────────────────────╢');
+            console.log(`║ Price Deviation │ Bid: ${(bidDeviation * 100).toFixed(3)}%              ║`);
+            console.log(`║                 │ Ask: ${(askDeviation * 100).toFixed(3)}%              ║`);
             console.log('╚════════════════════════════════════════════════════════════╝');
 
             // Check if current order is zeroed out
@@ -238,7 +246,7 @@ export class OnchainAggregatorBidStrategy {
                 console.log('\n📐 Current positioning exceeds acceptable range. Requoting...');
                 await this.updateOrders(newBid, newAsk);
             } else {
-                console.log('Current positioning within acceptable range. No action needed.');
+                console.log('\n🥳 Current positioning within acceptable range. No action needed.');
                 return;
             }
         }
