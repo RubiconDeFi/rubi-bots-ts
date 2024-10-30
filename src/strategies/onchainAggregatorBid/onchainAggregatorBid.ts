@@ -198,16 +198,16 @@ export class OnchainAggregatorBidStrategy {
                     currentAsk = askBuyAmount / askPayAmount;
                 }
             }
-            const bidDeviation = currentBid ? Math.abs(currentBid - krakenMidPrice) / krakenMidPrice : 0;
-            const askDeviation = currentAsk ? Math.abs(currentAsk - krakenMidPrice) / krakenMidPrice : 0;
+            const bidDeviation = currentBid ? Math.abs(currentBid - krakenBestBid) / krakenBestBid : 0;
+            const askDeviation = currentAsk ? Math.abs(currentAsk - krakenBestAsk) / krakenBestAsk : 0;
 
             // Log the math that came to this conclusion
             console.log('╔════════════════════════════════════════════════════════════╗');
             console.log('║                   Market Data Comparison                  ║');
             console.log('╠════════════════════════════════════════════════════════════╣');
-            console.log(`║ Kraken │ Mid Price:  ${krakenMidPrice.toFixed(8)}`);
-            console.log(`║ BID UPPER BOUND   │  ${(krakenMidPrice * (1 + this.maxDeviation)).toFixed(8)}`);
-            console.log(`║ ASK LOWER BOUND   │  ${(krakenMidPrice * (1 - this.maxDeviation)).toFixed(8)}`);
+            console.log(`║ Kraken │ Bid: ${krakenBestBid.toFixed(8)} Ask: ${krakenBestAsk.toFixed(8)}`);
+            console.log(`║ BID UPPER BOUND   │  ${(krakenBestBid * (1 + this.maxDeviation)).toFixed(8)}`);
+            console.log(`║ ASK LOWER BOUND   │  ${(krakenBestAsk * (1 - this.maxDeviation)).toFixed(8)}`);
             console.log(`║ CURRENT │ BID:  ${currentBid?.toFixed(8) || 'N/A'} ASK:  ${currentAsk?.toFixed(8) || 'N/A'}`);
             console.log(`║ DELTA │ BID:  ${bidDeviation?.toFixed(8) || 'N/A'} ASK:  ${askDeviation?.toFixed(8) || 'N/A'}`);
             console.log('╚════════════════════════════════════════════════════════════╝');
