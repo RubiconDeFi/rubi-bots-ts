@@ -107,10 +107,10 @@ export class OnchainAggregatorBidStrategy {
         }
 
         // 4. Update logic
-        // TODO: SOLVE FOR THIS VALUE
         const volatilityThreshold = 0.02; // 2% threshold, adjust as needed
         const isHighVolatility = Math.abs(krakenBestAsk - krakenBestBid) / krakenBestBid > volatilityThreshold;
 
+        // TODO: SOLVE FOR THIS VALUE IN THE FUTURE - In theory, volatility should be priced into the spreads
         if (isHighVolatility) {
             // 4.1 If it is a high volatility period, remove orders from book
             await this.removeAllOrders();
@@ -154,11 +154,13 @@ export class OnchainAggregatorBidStrategy {
             console.log(`║ Kraken │ ${Number(krakenData.bids[0].price).toFixed(8).padStart(18)} │ ${Number(krakenData.asks[0].price).toFixed(8).padStart(18)} │ ${(Number(krakenData.asks[0].price) - Number(krakenData.bids[0].price)).toFixed(8).padStart(7)} ║`);
             console.log(`║ ODOS   │ ${odosData.bestBid.toFixed(8).padStart(18)} │ ${odosData.bestAsk.toFixed(8).padStart(18)} │ ${(odosData.bestAsk - odosData.bestBid).toFixed(8).padStart(7)} ║`);
             console.log(`║ SELECT │ ${newBid.toFixed(8).padStart(18)} │ ${newAsk.toFixed(8).padStart(18)} │ ${(newAsk - newBid).toFixed(8).padStart(7)} ║`);
-            console.log('╚════════════════════════════════════════════════════════════╝');
+            console.log('╚═══════════════════════════════════════════��════════════════╝');
 
 
             // 4.2 If it is a low volatility period, add or update orders to book that outbid ODOS spread
             // 4.3 Check if the new positioning is too offsides based on Kraken data
+            // TODO: should also be based on order book not mid price
+            // TODO: should be a programmable value
             const maxDeviation = 0.01; // 1% max deviation from Kraken mid price
             console.log('kraken mid price:', krakenMidPrice);
             console.log('new bid:', newBid);
@@ -186,8 +188,8 @@ export class OnchainAggregatorBidStrategy {
                     currentAsk = askBuyAmount / askPayAmount;
                 }
             }
-            const bidDeviation = Math.abs(currentBid - krakenMidPrice) / krakenMidPrice;
-            const askDeviation = Math.abs(currentAsk - krakenMidPrice) / krakenMidPrice;
+            const bidDeviation = currentBid ? Math.abs(currentBid - krakenMidPrice) / krakenMidPrice : 0;
+            const askDeviation = currentAsk ? Math.abs(currentAsk - krakenMidPrice) / krakenMidPrice : 0;
 
             // Log the math that came to this conclusion
             console.log('╔════════════════════════════════════════════════════════════╗');
@@ -200,23 +202,16 @@ export class OnchainAggregatorBidStrategy {
             console.log(`║ DELTA │ BID:  ${bidDeviation?.toFixed(8) || 'N/A'} ASK:  ${askDeviation?.toFixed(8) || 'N/A'}`);
             console.log('╚════════════════════════════════════════════════════════════╝');
 
+            // Only check deviations for prices that exist
+            const bidNeedsUpdate = currentBid && bidDeviation > maxDeviation;
+            const askNeedsUpdate = currentAsk && askDeviation > maxDeviation;
 
-            if (currentBid || currentAsk) {
-
-                if (bidDeviation <= maxDeviation && askDeviation <= maxDeviation) {
-                    console.log('Current positioning within acceptable range. No action needed.');
-                    return;
-                } else {
-                    console.log('\n📐 Current positioning exceeds acceptable range. Requoting...');
-
-
-                    await this.updateOrders(newBid, newAsk);
-                }
+            if (bidNeedsUpdate || askNeedsUpdate) {
+                console.log('\n📐 Current positioning exceeds acceptable range. Requoting...');
+                await this.updateOrders(newBid, newAsk);
             } else {
-                console.log('\n🥳 No current positioning. Placing initial orders...');
-                // Log the price and size of the initial orders
-                console.log('Placing initial orders with these values: ', newBid, newAsk);
-                await this.placeInitialOrders(newBid, newAsk);
+                console.log('Current positioning within acceptable range. No action needed.');
+                return;
             }
         }
     }
