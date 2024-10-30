@@ -107,7 +107,7 @@ export class OnchainAggregatorBidStrategy {
         );
 
         // If we found any zero positions, clean them up
-        if (zeroPositionsWithUIDs.length > 0) {
+        if (zeroPositionsWithUIDs.length > 0 && onchainPositioning.length > 1) {
             console.log(`Found ${zeroPositionsWithUIDs.length} zeroed positions, cleaning up...`);
             const zeroUIDs = zeroPositionsWithUIDs.map(offer => offer.relevantStratTradeId);
             if (zeroUIDs.length > 0) {
@@ -182,9 +182,15 @@ export class OnchainAggregatorBidStrategy {
 
             console.log('onchain positioning:', onchainPositioning.map(offer => ({ bidPay: formatUnits(offer.bidPay, this.quoteToken.decimals), bidBuy: formatUnits(offer.bidBuy, this.baseToken.decimals), askPay: formatUnits(offer.askPay, this.baseToken.decimals), askBuy: formatUnits(offer.askBuy, this.quoteToken.decimals), UID: offer.relevantStratTradeId.toString() })));
 
+            // NOTE THAT IF WE EXTEND THE LADER LENGTH THIS SHOULD BE REMOVED AND CODE UPDATED
+            if (onchainPositioning.length > 1) {
+                console.log("/n SOMETHING IS OFF BREAKING - too many outstanding orders... should scrub extra in next go aruond");
+                return;
+            }
+
             if (onchainPositioning.length > 0) {
-                const bidOffer = onchainPositioning.find(offer => offer.bidPay.gt(0) && offer.bidBuy.gt(0));
-                const askOffer = onchainPositioning.find(offer => offer.askPay.gt(0) && offer.askBuy.gt(0));
+                const bidOffer = onchainPositioning[0];
+                const askOffer = onchainPositioning[0];
 
                 if (bidOffer) {
                     const bidPayAmount = parseFloat(formatUnits(bidOffer.bidPay, this.quoteToken.decimals));
@@ -198,9 +204,14 @@ export class OnchainAggregatorBidStrategy {
                     currentAsk = askBuyAmount / askPayAmount;
                 }
             }
+            // NAN when zero'd...
+            // console.log("current bid and ask:", currentBid, currentAsk);
+            
             const bidDeviation = currentBid ? Math.abs(currentBid - krakenBestBid) / krakenBestBid : 0;
             const askDeviation = currentAsk ? Math.abs(currentAsk - krakenBestAsk) / krakenBestAsk : 0;
 
+            // console.log("bid deviation and ask deviation:", bidDeviation, askDeviation);
+            
             // Log the math that came to this conclusion
             console.log('╔════════════════════════════════════════════════════════════╗');
             console.log('║                   Market Data Comparison                  ║');
@@ -212,9 +223,16 @@ export class OnchainAggregatorBidStrategy {
             console.log(`║ DELTA │ BID:  ${bidDeviation?.toFixed(8) || 'N/A'} ASK:  ${askDeviation?.toFixed(8) || 'N/A'}`);
             console.log('╚════════════════════════════════════════════════════════════╝');
 
-            // Only check deviations for prices that exist
-            const bidNeedsUpdate = currentBid && bidDeviation > this.maxDeviation;
-            const askNeedsUpdate = currentAsk && askDeviation > this.maxDeviation;
+            // Check if current order is zeroed out
+            const isOrderZeroed = onchainPositioning.length > 0 && 
+                onchainPositioning[0].bidPay.eq(0) && 
+                onchainPositioning[0].bidBuy.eq(0) && 
+                onchainPositioning[0].askPay.eq(0) && 
+                onchainPositioning[0].askBuy.eq(0);
+
+            // Only check deviations for prices that exist OR if order is zeroed
+            const bidNeedsUpdate = (currentBid && bidDeviation > this.maxDeviation) || isOrderZeroed;
+            const askNeedsUpdate = (currentAsk && askDeviation > this.maxDeviation) || isOrderZeroed;
 
             if (bidNeedsUpdate || askNeedsUpdate) {
                 console.log('\n📐 Current positioning exceeds acceptable range. Requoting...');
