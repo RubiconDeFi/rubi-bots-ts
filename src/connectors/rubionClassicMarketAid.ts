@@ -1,6 +1,6 @@
 import { Contract, ethers } from "ethers";
 import RUBICON_MARKET_ABI from "../constants/RubiconMarket.json";
-import ERC20_ABI from "../constants/ERC20.json";
+import ERC20_ABI from "../constants/erc20.json";
 import MARKET_AID_ABI from "../constants/MarketAid.json";
 import { formatUnits } from "ethers/lib/utils";
 

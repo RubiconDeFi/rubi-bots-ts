@@ -1,6 +1,6 @@
 import { Contract, ethers } from "ethers";
 import RUBICON_MARKET_ABI from "../constants/RubiconMarket.json";
-import ERC20_ABI from "../constants/ERC20.json";
+import ERC20_ABI from "../constants/erc20.json";
 
 export interface OfferStatus {
     id: ethers.BigNumber;
