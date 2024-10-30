@@ -24,13 +24,12 @@ export class KrakenReferenceVenue implements MarketVenue {
         return `${krakenBase}${krakenQuote}`;
     }
 
+    // NOTE SOME PAIRS IT IS USD AND SOME ZUSD SO JUST PASS IN
     // Map common symbols to Kraken's notation
     private convertSymbolToKraken(symbol: string): string {
         switch (symbol.toUpperCase()) {
             case 'ETH':
                 return 'XETH';
-            case 'USD':
-                return 'USD';
             case 'BTC':
                 return 'XXBT';
             case 'OP':
