@@ -14,6 +14,8 @@ export class BondingCurveStrategy {
     private quoteToken!: TokenInfo;
     private pollInterval: number;
     private orderLadderSize: number;
+    private priceRange: number;
+    private sizeRange: number;
     private chainID: number;
     private userAddress: string;
     private baseAddress: string;
@@ -27,7 +29,9 @@ export class BondingCurveStrategy {
         baseAddress: string,
         quoteAddress: string,
         pollInterval: number = 5000,
-        orderLadderSize: number = 5
+        orderLadderSize: number = 5,
+        priceRange: number = 6,
+        sizeRange: number = 12
     ) {
         this.chainID = chainID;
         this.userAddress = userAddress;
@@ -35,6 +39,8 @@ export class BondingCurveStrategy {
         this.quoteAddress = quoteAddress;
         this.pollInterval = pollInterval;
         this.orderLadderSize = orderLadderSize;
+        this.priceRange = priceRange;
+        this.sizeRange = sizeRange;
         this.provider = walletWithProvider.provider!;
 
         // Check and fetch token information if necessary
@@ -178,8 +184,8 @@ export class BondingCurveStrategy {
 
         // TODO: These should be configuration variables
         /// @dev Key drivers for curve aggressiveness and positioning, w/ the other being ladder size
-        const priceRange = 6; // Increased for more aggressive price scaling
-        const sizeRange = 12;  // Size will scale up to 3x the base size
+        const priceRange = this.priceRange; // Increased for more aggressive price scaling
+        const sizeRange = this.sizeRange;  // Size will scale up to 3x the base size
 
         const baseSize = maxBaseToUse / (this.orderLadderSize * 2); // Smaller base size since we're scaling up
         const quoteSize = maxQuoteToUse / (this.orderLadderSize * 2);
