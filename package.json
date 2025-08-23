@@ -12,6 +12,7 @@
     "@rubicondefi/gladius-sdk": "^1.4.27",
     "@types/node": "^22.5.3",
     "@uniswap/token-lists": "^1.0.0-beta.34",
+    "axios": "^1.6.0",
     "dotenv": "^16.4.5",
     "ethers": "5",
     "node-kraken-api": "^2.2.2",
@@ -25,6 +26,8 @@
     "run:cexMarketMaking": "ts-node src/strategies/cexMarketMaking/index.ts",
     "run:ammOutbid": "ts-node src/strategies/ammOutbid/index.ts",
     "run:bondingCurve": "ts-node src/strategies/bondingCurve/index.ts",
-    "run:onchainAggregatorBid": "ts-node src/strategies/onchainAggregatorBid/index.ts"
+    "run:onchainAggregatorBid": "ts-node src/strategies/onchainAggregatorBid/index.ts",
+    "run:odosFiller": "ts-node src/fillers/example.ts",
+    "quoteODOSOutput": "ts-node src/fillers/quoteODOSOutput.ts"
   }
 }
