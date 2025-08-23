@@ -28,6 +28,9 @@
     "run:bondingCurve": "ts-node src/strategies/bondingCurve/index.ts",
     "run:onchainAggregatorBid": "ts-node src/strategies/onchainAggregatorBid/index.ts",
     "run:odosFiller": "ts-node src/fillers/example.ts",
-    "quoteODOSOutput": "ts-node src/fillers/quoteODOSOutput.ts"
+    "quoteODOSOutput": "ts-node src/fillers/quoteODOSOutput.ts",
+    "viewGladiusOrders": "ts-node src/fillers/viewGladiusOrders.ts",
+    "run:odosBot": "ts-node src/fillers/botExample.ts",
+    "findArbitrage": "ts-node src/fillers/findArbitrage.ts"
   }
 }
