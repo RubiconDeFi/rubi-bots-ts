@@ -220,11 +220,11 @@ export class ODOSBot {
                     console.log(`  ✅ Input token found: ${inputTokenInfo.symbol} (${inputTokenInfo.address})`);
                 } catch (error) {
                     console.error(`  ❌ Input token not found: ${order.input.token}`);
-                    console.error(`  🔍 Available tokens on chain ${this.chainId}:`, 
-                        tokenList.tokens
-                            .filter(t => t.chainId === this.chainId)
-                            .map(t => `${t.symbol}:${t.address}`)
-                    );
+                    // console.error(`  🔍 Available tokens on chain ${this.chainId}:`, 
+                    //     tokenList.tokens
+                    //         .filter(t => t.chainId === this.chainId)
+                    //         .map(t => `${t.symbol}:${t.address}`)
+                    // );
                     continue;
                 }
                 
@@ -233,11 +233,11 @@ export class ODOSBot {
                     console.log(`  ✅ Output token found: ${outputTokenInfo.symbol} (${outputTokenInfo.address})`);
                 } catch (error) {
                     console.error(`  ❌ Output token not found: ${order.outputs[0].token}`);
-                    console.error(`  🔍 Available tokens on chain ${this.chainId}:`, 
-                        tokenList.tokens
-                            .filter(t => t.chainId === this.chainId)
-                            .map(t => `${t.symbol}:${t.address}`)
-                    );
+                    // console.error(`  🔍 Available tokens on chain ${this.chainId}:`, 
+                    //     tokenList.tokens
+                    //         .filter(t => t.chainId === this.chainId)
+                    //         .map(t => `${t.symbol}:${t.address}`)
+                    // );
                     continue;
                 }
                 
@@ -431,11 +431,12 @@ export class ODOSBot {
                 amount = gladiusOrder.baseAmount.toString();
                 console.log(`  🔄 BID: Selling ${amount} ${fromToken} to get ${toToken} on ODOS`);
             } else {
-                // Gladius is selling base for quote, so we want to buy base with quote on ODOS
-                fromToken = gladiusOrder.quoteToken;
-                toToken = gladiusOrder.baseToken;
-                amount = gladiusOrder.quoteAmount.toString();
-                console.log(`  🔄 ASK: Buying ${toToken} with ${amount} ${fromToken} on ODOS`);
+                // Gladius is selling base for quote, so we want to sell base to get quote on ODOS (REVERSE)
+                // We sell the base amount on ODOS to see how much quote we get
+                fromToken = gladiusOrder.baseToken;
+                toToken = gladiusOrder.quoteToken;
+                amount = gladiusOrder.baseAmount.toString();
+                console.log(`  🔄 ASK: Selling ${amount} ${fromToken} to get ${toToken} on ODOS (reverse trade)`);
             }
             
             console.log(`  🔍 Looking up token info for: ${fromToken} and ${toToken}`);
@@ -453,9 +454,9 @@ export class ODOSBot {
                 toTokenAddress = '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb'; // DAI address
             } else {
                 // For ASK: baseToken is RUBI, quoteToken is DAI  
-                // We want to buy RUBI with DAI on ODOS
-                fromTokenAddress = '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb'; // DAI address
-                toTokenAddress = '0xb3836098d1e94EC651D74D053d4a0813316B2a2f'; // RUBI address
+                // We want to sell RUBI to get DAI on ODOS (same as BID for this pair)
+                fromTokenAddress = '0xb3836098d1e94EC651D74D053d4a0813316B2a2f'; // RUBI address
+                toTokenAddress = '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb'; // DAI address
             }
             
             console.log(`  🎯 Using addresses: ${fromTokenAddress} -> ${toTokenAddress}`);
@@ -470,9 +471,9 @@ export class ODOSBot {
             
             // Double-check these tokens exist in our list
             const availableTokens = tokenList.tokens.filter(t => t.chainId === this.chainId);
-            console.log(`  🔍 Available tokens on chain ${this.chainId}:`, 
-                availableTokens.map(t => `${t.symbol}:${t.address}`)
-            );
+            // console.log(`  🔍 Available tokens on chain ${this.chainId}:`, 
+            //     availableTokens.map(t => `${t.symbol}:${t.address}`)
+            // );
             
             // Query ODOS for the reverse trade
             console.log(`  🚀 Querying ODOS for quote...`);
@@ -571,25 +572,25 @@ export class ODOSBot {
             
         } else {
             // Gladius ASK: Someone wants to sell base for quote
-            // We can buy base with quote on ODOS, then sell that base to fill the Gladius order
+            // We sell base on ODOS to get quote, then use that quote to fill the Gladius order
             
-            // What we'd pay on ODOS: odosInputAmount quote tokens
-            // What we'd get from ODOS: odosOutputAmount base tokens
-            // What we'd pay to Gladius: gladiusQuoteAmount quote tokens
-            // What we'd get from Gladius: gladiusBaseAmount base tokens
+            // What we'd get from ODOS: odosOutputAmount quote tokens (DAI)
+            // What we'd pay on ODOS: odosInputAmount base tokens (RUBI)
+            // What we'd get from Gladius: gladiusQuoteAmount quote tokens (DAI)
+            // What we'd pay to Gladius: gladiusBaseAmount base tokens (RUBI)
             
             // Check if we can fill the entire order
-            if (odosOutputAmount >= gladiusBaseAmount) {
+            if (odosInputAmount >= gladiusBaseAmount) {
                 // Calculate effective prices using absolute amounts
-                odosEffectivePrice = odosInputAmount / odosOutputAmount; // quote per base
-                gladiusEffectivePrice = gladiusQuoteAmount / gladiusBaseAmount; // quote per base
+                odosEffectivePrice = odosOutputAmount / odosInputAmount; // quote per base (DAI per RUBI)
+                gladiusEffectivePrice = gladiusQuoteAmount / gladiusBaseAmount; // quote per base (DAI per RUBI)
                 
-                // If we pay less quote tokens on ODOS than we get from Gladius
-                if (odosInputAmount < gladiusQuoteAmount) {
+                // If ODOS gives us more quote tokens than we need to pay for the Gladius order
+                if (odosOutputAmount > gladiusQuoteAmount) {
                     canFill = true;
                     fillAmount = gladiusBaseAmount;
-                    surplus = gladiusQuoteAmount - odosInputAmount; // Extra quote tokens we keep
-                    potentialProfit = surplus; // Profit in quote token terms
+                    surplus = odosOutputAmount - gladiusQuoteAmount; // Extra DAI we keep
+                    potentialProfit = surplus; // Profit in DAI terms
                 }
             }
         }
@@ -603,14 +604,23 @@ export class ODOSBot {
         const gasCostUSD = odosQuote.gasEstimateValue || 0;
         const netProfit = potentialProfit - gasCostUSD;
         
-        console.log(`  💰 Analysis results:`);
-        console.log(`    ODOS effective price: ${odosEffectivePrice.toFixed(6)} ${quoteTokenInfo.symbol} per ${baseTokenInfo.symbol}`);
-        console.log(`    Gladius effective price: ${gladiusEffectivePrice.toFixed(6)} ${quoteTokenInfo.symbol} per ${baseTokenInfo.symbol}`);
-        console.log(`    Price difference: ${priceDifferencePercent.toFixed(2)}%`);
-        console.log(`    Can fill: ${canFill}`);
+        // Enhanced price analysis with higher precision
+        console.log(`  💰 PRICE ANALYSIS (${new Date().toISOString()}):`);
+        console.log(`    🎯 ODOS Rate: ${odosEffectivePrice.toFixed(8)} ${quoteTokenInfo.symbol} per ${baseTokenInfo.symbol}`);
+        console.log(`    🔴 Gladius Rate: ${gladiusEffectivePrice.toFixed(8)} ${quoteTokenInfo.symbol} per ${baseTokenInfo.symbol}`);
+        console.log(`    📊 Price Difference: ${priceDifference.toFixed(8)} ${quoteTokenInfo.symbol} per ${baseTokenInfo.symbol}`);
+        console.log(`    📈 Price Difference: ${priceDifferencePercent.toFixed(4)}%`);
+        
+        // Show the actual amounts being compared
+        console.log(`  📦 AMOUNT COMPARISON:`);
+        console.log(`    🚀 ODOS: ${odosInputAmount.toFixed(8)} ${baseTokenInfo.symbol} → ${odosOutputAmount.toFixed(8)} ${quoteTokenInfo.symbol}`);
+        console.log(`    🔴 Gladius: ${gladiusBaseAmount.toFixed(8)} ${baseTokenInfo.symbol} ↔ ${gladiusQuoteAmount.toFixed(8)} ${quoteTokenInfo.symbol}`);
+        
+        console.log(`  ✅ ARBITRAGE RESULT:`);
+        console.log(`    Can fill: ${canFill ? 'YES 🎯' : 'NO ❌'}`);
         if (canFill) {
-            console.log(`    Surplus: ${surplus.toFixed(6)} ${quoteTokenInfo.symbol}`);
-            console.log(`    Net profit: $${netProfit.toFixed(4)} USD`);
+            console.log(`    💰 Surplus: ${surplus.toFixed(8)} ${quoteTokenInfo.symbol}`);
+            console.log(`    🎯 Net profit: $${netProfit.toFixed(6)} USD`);
         }
         
         return {
