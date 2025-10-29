@@ -7,11 +7,13 @@
   "author": "bghughes <benjamin.hughes@utexas.edu>",
   "license": "MIT",
   "dependencies": {
+    "@0x/swap-ts-sdk": "^2.1.1",
     "@ethersproject/abi": "5.7",
     "@indexed-finance/multicall": "^2.0.0",
     "@rubicondefi/gladius-sdk": "^1.4.27",
     "@types/node": "^22.5.3",
     "@uniswap/token-lists": "^1.0.0-beta.34",
+    "axios": "^1.6.0",
     "dotenv": "^16.4.5",
     "ethers": "5",
     "node-kraken-api": "^2.2.2",
@@ -20,11 +22,16 @@
     "tslib": "^2.6.3",
     "typescript": "^5.5.4"
   },
-  "devDependencies": {},
   "scripts": {
     "run:cexMarketMaking": "ts-node src/strategies/cexMarketMaking/index.ts",
     "run:ammOutbid": "ts-node src/strategies/ammOutbid/index.ts",
     "run:bondingCurve": "ts-node src/strategies/bondingCurve/index.ts",
-    "run:onchainAggregatorBid": "ts-node src/strategies/onchainAggregatorBid/index.ts"
-  }
+    "run:onchainAggregatorBid": "ts-node src/strategies/onchainAggregatorBid/index.ts",
+    "run:odosFiller": "ts-node src/fillers/example.ts",
+    "quoteODOSOutput": "ts-node src/fillers/quoteODOSOutput.ts",
+    "viewGladiusOrders": "ts-node src/fillers/viewGladiusOrders.ts",
+    "run:odosBot": "ts-node src/fillers/botExample.ts",
+    "findArbitrage": "ts-node src/fillers/findArbitrage.ts"
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

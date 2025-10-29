@@ -1,0 +1,8 @@
+node_modules/
+cache/
+artifacts/
+typechain-types/
+.openzeppelin/
+*.log
+.env
+!.env.example
